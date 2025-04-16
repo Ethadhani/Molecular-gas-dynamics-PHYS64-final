@@ -61,7 +61,15 @@ class ParticleSimulator:
                 self.vel[a_idx] -= accel * dt 
         self.pos += self.vel * dt
 
-        # check for wallsl
+        # check if we have exited the wall,
+        
+        norms = np.linalg.norm(self.pos, axis=1)
+        #indicies = np.where(norms >=1)
+        # np.where maybe to swap velocities, 
+        # take the tangent plane of sphere, swap velocity that is normal to it which should be same as subtracting twice projection
+        # https://math.stackexchange.com/questions/633181/formula-to-project-a-vector-onto-a-plane
+
+        # check for walls with tangent pl
     
     def energy(self) -> None:
         """Energy"""

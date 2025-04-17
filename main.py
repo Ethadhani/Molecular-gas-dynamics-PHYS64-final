@@ -63,18 +63,34 @@ class ParticleSimulator:
 
         # check if we have exited the wall,
         
-        norms = np.linalg.norm(self.pos, axis=1)
         #indicies = np.where(norms >=1)
         # np.where maybe to swap velocities, 
         # take the tangent plane of sphere, swap velocity that is normal to it which should be same as subtracting twice projection
         # https://math.stackexchange.com/questions/633181/formula-to-project-a-vector-onto-a-plane
 
         # check for walls with tangent pl
-    
-    def energy(self) -> None:
-        """Energy"""
-        pass
 
+        self.checkCollisionsWithSphere()
+    
+    def checkCollisionsWithSphere(self):
+        """Redirects particles which are outside of the unit sphere"""
+        norms = np.linalg.norm(self.pos, axis=1)
+        # indices of all particles outside the unit sphere
+        outside_indices = np.where(norms >= 1)
+
+        # outward normal vector of the sphere which we will use to find the tangent plane
+        normal_vector = -1 * self.pos[outside_indices]
+
+        # subtract twice the projection of the velocity onto the tangent plane of the sphere
+        # this reflects the change in velocity due to elastic collision with the inside of the sphere
+        projected_velocity = self.vel[outside_indices] - (
+            self.vel[outside_indices] @ normal_vector
+        ) * normal_vector
+        self.vel[outside_indices] -= 2 * projected_velocity 
+
+    def energy(self) -> None:
+        """Kinetic energy"""
+        return np.sum(0.5 * MASS * np.square(np.norm(self.vel, axis = 1)))
     
     @staticmethod
     def _sphericalToCart(coord):

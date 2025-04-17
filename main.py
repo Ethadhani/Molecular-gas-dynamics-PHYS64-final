@@ -3,6 +3,10 @@
 import numpy as np
 from typing import Tuple
 from numpy.random import default_rng
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.animation as animation
+import matplotlib as mpl
 
 MASS = 1 # arbitrary unit system
 # Potential constants
@@ -16,7 +20,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, N: int = 3):
+    def __init__(self, N: int = 2):
         '''
             Initializes the particle simulation
 
@@ -26,9 +30,9 @@ class ParticleSimulator:
         self.N = N
         rng = default_rng()
         # generate starting positions in spherical coordinates so that we stay withing our bounds
-        spherCoord = rng.uniform([0, 0, 0],[1, np.pi, 2 * np.pi], size=(self.N, 3))
+        spherCoord = rng.uniform([1, 0, 0],[2, np.pi, 2 * np.pi], size=(self.N, 3))
 
-        self.pos = [[0,0,0], [0.1,0.2,0.3], [1,1,1]] # self._sphericalToCart(spherCoord)
+        self.pos =  self._sphericalToCart(spherCoord)
 
         # generate velocity with constant magnitude v_initial
         # asking numpy RNG to give a number between v_i and v_i each time should yield v_i 
@@ -56,7 +60,7 @@ class ParticleSimulator:
         # print(forces, self.pos)
         for a_idx in range(self.N):
             for b_idx in range(a_idx + 1, self.N): # +1 so particles dont explode
-                accel = self.force(self.pos[a_idx], self.pos[b_idx])/MASS
+                accel = self.force(self.pos[a_idx], self.pos[b_idx]) #/ MASS
                 self.vel[b_idx] += accel * dt
                 self.vel[a_idx] -= accel * dt 
         self.pos += self.vel * dt
@@ -81,16 +85,63 @@ class ParticleSimulator:
         # outward normal vector of the sphere which we will use to find the tangent plane
         normal_vector = -1 * self.pos[outside_indices]
 
+        # if nothing is outside then return
+        if np.size(outside_indices) == 0:
+            return
+
         # subtract twice the projection of the velocity onto the tangent plane of the sphere
         # this reflects the change in velocity due to elastic collision with the inside of the sphere
-        projected_velocity = self.vel[outside_indices] - (
-            self.vel[outside_indices] @ normal_vector
-        ) * normal_vector
+    #https://stackoverflow.com/questions/15616742/vectorized-way-of-calculating-row-wise-dot-product-two-matrices-with-scipy
+    
+        projected_velocity = self.vel[outside_indices] - np.sum(self.vel[outside_indices] @ np.transpose(normal_vector), axis=1) * normal_vector
         self.vel[outside_indices] -= 2 * projected_velocity 
 
     def energy(self) -> None:
         """Kinetic energy"""
-        return np.sum(0.5 * MASS * np.square(np.norm(self.vel, axis = 1)))
+        return np.sum(0.5 * MASS * np.square(np.linalg.norm(self.vel, axis = 1)))
+    
+    def run(self):
+        '''
+
+        '''
+        # taken from matplotlib documentation and research code
+
+        #plot the sphere
+        # rng = default_rng()
+        # spherCoord = rng.uniform([1, 0, 0],[1, np.pi, 2 * np.pi], size=(1000, 3))
+        # sphere = self._sphericalToCart(spherCoord)
+        
+
+        fig = plt.figure()
+        ax = fig.add_subplot(projection='3d')
+        vmin = 0
+        vmax = 2 * self.energy() / self.N
+        # fig.colorbar(mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin, vmax), cmap='hot_r'),
+        #      ax=ax, orientation='vertical', label='Kinetic Energy')
+
+        # #plot sphere
+        # ax.scatter(sphere[:,0], sphere[:,1], sphere[:,2], alpha =0.2)
+
+
+        # get the positions in plottable form
+        xp = self.pos[:,0]
+        yp = self.pos[:,1]
+        zp = self.pos[:,2]
+        
+        scat = ax.scatter(xp, yp, zp,  c=0.5 * np.linalg.norm(self.vel, axis=1)**2, cmap="hot_r",
+                    vmax=vmax, vmin=vmin)
+        
+        # define update function
+
+        def update(frame):
+            self.step()
+            scat.set_offsets(self.pos)
+            return (scat)
+        
+        ani = animation.FuncAnimation(fig = fig, func = update, frames = 40, interval = 30)
+        plt.show()
+
+    
     
     @staticmethod
     def _sphericalToCart(coord):
@@ -121,14 +172,21 @@ class ParticleSimulator:
                 * (z direction) = -V_0 a^3 z (-(4 a)/(x^2 + y^2 + z^2)^3 + 3/(x^2 + y^2 + z^2)^(5/2))
         """
         # x,y,z components of r
-        print("A is",a)
-        x, y, z = a - b
-        return (
-            -V0 * (a**3 * x (-(4 * A)/(x**2 + y**2 + z**2)**3 + 3/(x**2 + y**2 + z**2)**(5/2))),
-            -V0 * a**3 * y (-(4 * A)/(x**2 + y**2 + z**2)**3 + 3/(x**2 + y**2 + z**2)**(5/2)),
-            -V0 * a**3 * z (-(4 * A)/(x**2 + y**2 + z**2)**3 + 3/(x**2 + y**2 + z**2)**(5/2))
-        )
+        # diff = a - b
+        # x = diff[0]
+        # y = diff[1]
+        # z = diff[2]
+
+        x, y, z = a-b
+
+        return np.array([
+            -V0 * (A**3 * x * (-(4 * A)/(x**2 + y**2 + z**2)**3 + 3/(x**2 + y**2 + z**2)**(5/2))),
+            -V0 * A**3 * y * (-(4 * A)/(x**2 + y**2 + z**2)**3 + 3/(x**2 + y**2 + z**2)**(5/2)),
+            -V0 * A**3 * z * (-(4 * A)/(x**2 + y**2 + z**2)**3 + 3/(x**2 + y**2 + z**2)**(5/2))
+        ])
 
 s = ParticleSimulator()
+#s.run()
 s.step()
+
 # %%

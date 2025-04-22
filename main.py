@@ -11,7 +11,7 @@ import sys
 
 MASS = 1 # arbitrary unit system
 # Potential constants
-V0 = 0
+V0 = 0#0.001
 A = 0.1 # initial guess that we can change later
 initial_velocity = 1
 
@@ -21,7 +21,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, N: int = 10):
+    def __init__(self, N: int = 2):
         '''
             Initializes the particle simulation
 
@@ -118,14 +118,17 @@ class ParticleSimulator:
         '''
         # taken from matplotlib documentation and research code
 
-        #plot the sphere
-        # rng = default_rng()
-        # spherCoord = rng.uniform([1, 0, 0],[1, np.pi, 2 * np.pi], size=(1000, 3))
-        # sphere = self._sphericalToCart(spherCoord)
+        #plot the sphere taken from matplotlib docs
+        u = np.linspace(0, 2 * np.pi, 20)
+        v = np.linspace(0, np.pi, 20)
+        x = 1 * np.outer(np.cos(u), np.sin(v))
+        y = 1 * np.outer(np.sin(u), np.sin(v))
+        z = 1 * np.outer(np.ones(np.size(u)), np.cos(v))
         
 
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
+        ax.plot_surface(x, y, z, alpha=0.1)
         vmin = 0
         vmax = 2 * self.energy() / self.N
         # fig.colorbar(mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin, vmax), cmap='hot_r'),

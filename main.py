@@ -13,7 +13,7 @@ MASS = 1 # arbitrary unit system
 # Potential constants
 V0 = 0.01
 A = 0.02 # initial guess that we can change later
-MIN_SEPARATION = 0.005
+MIN_SEPARATION = 0.003
 initial_velocity = 1
 
 # type indicating (x, y, z) coordinates
@@ -191,26 +191,32 @@ class ParticleSimulator:
 
         posData = np.zeros((numdt, self.N, 3))
         velData = np.zeros((numdt, self.N, 3))
+        KData = np.zeros(numdt)
+        timeData = np.zeros(numdt)
 
         time = 0
         for i in range(numdt):
-            time+= dt
-            self.step(dt)
             posData[i] = self.pos
             velData[i] = self.vel
+            KData[i] = self.energy()
+            if KData[i] == 0:
+                KData[i] = 0.01
+            timeData[i] = time
             if i % 10 == 0:
                 print(time)
+            time+= dt
+            self.step(dt)
+        KData = np.abs(KData)
 
         print('data has been generated! yay!')
 
-        fig = plt.figure()#figsize=plt.figaspect(2.))
-        ax = fig.add_subplot(projection='3d')
-        # ax_2d = fig.add_subplot(2,1,2)
+        fig = plt.figure(figsize=plt.figaspect(2.))
+        ax = fig.add_subplot(2,1,1,projection='3d')
+        ax_2d = fig.add_subplot(2,1,2)
 
-        energies = [self.energy()]
-        times = [0]
-
-        # energy_plot = ax_2d.plot(times, energies)[0]
+        times = []
+        energies = []
+        energy_plot = ax_2d.plot(times, energies)[0]
         # ax.plot_surface(x, y, z, alpha=0.1)
         # vmin = 0
         # vmax = 2 * energies[0] / self.N
@@ -232,17 +238,19 @@ class ParticleSimulator:
         ax.set_ylim((-1,1))
         ax.set_zlim((-1,1))
 
-        
-       
-
         def update(frame):
-
             scat._offsets3d = (posData[frame][:,0], posData[frame][:,1], posData[frame][:,2])
             scat.set_array(np.linalg.norm(velData[frame], axis=1))
-            # energy_plot.set_xdata(times)
-            # energy_plot.set_ydata(energies)
-            # ax_2d.set_xlim([0, times[-1]])
-            # ax_2d.set_ylim([0, max(energies) * 2])
+
+            energy_plot.set_xdata(timeData[:frame])
+            energy_plot.set_ydata(KData[:frame])
+            ax_2d.set_xlim((0, timeData[frame]))
+            ax_2d.set_ylim((0, KData[frame])) # assumption: energy never decreases
+            # if frame == 3: # FIXME: this so it is not zero which makes mat plot lib yell at us
+            #     print(KData[2:frame])
+            #     ax_2d.set_yscale('log')
+                # sys.exit()
+            #     ax_2d.set_xscale('log')
             return (scat, )
         
         ani = animation.FuncAnimation(fig = fig, func = update, frames = numdt, interval = dt * 1000)
@@ -301,6 +309,6 @@ class ParticleSimulator:
 
 s = ParticleSimulator()
 #s.run()
-s.runPre(0.01, 5)
+s.runPre(0.005, 10)
 
 # %%

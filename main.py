@@ -22,7 +22,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, N: int = 250):
+    def __init__(self, N: int = 100):
         '''
             Initializes the particle simulation
 
@@ -182,7 +182,73 @@ class ParticleSimulator:
         ani = animation.FuncAnimation(fig = fig, func = update, frames = 1000, interval = 3)
         plt.show()
 
-    
+    def runPre(self, dt, time):
+
+
+        # pre compute
+
+        numdt = int(time / dt)
+
+        posData = np.zeros((numdt, self.N, 3))
+        velData = np.zeros((numdt, self.N, 3))
+
+        time = 0
+        for i in range(numdt):
+            time+= dt
+            self.step(dt)
+            posData[i] = self.pos
+            velData[i] = self.vel
+            if i % 10 == 0:
+                print(time)
+
+        print('data has been generated! yay!')
+
+        fig = plt.figure()#figsize=plt.figaspect(2.))
+        ax = fig.add_subplot(projection='3d')
+        # ax_2d = fig.add_subplot(2,1,2)
+
+        energies = [self.energy()]
+        times = [0]
+
+        # energy_plot = ax_2d.plot(times, energies)[0]
+        # ax.plot_surface(x, y, z, alpha=0.1)
+        vmin = 0
+        vmax = 2 * energies[0] / self.N
+        # fig.colorbar(mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin, vmax), cmap='hot_r'),
+        #      ax=ax, orientation='vertical', label='Kinetic Energy')
+
+        # #plot sphere
+        # ax.scatter(sphere[:,0], sphere[:,1], sphere[:,2], alpha =0.2)
+
+
+        # get the positions in plottable form
+        xp = posData[0][:,0]
+        yp = posData[0][:,1]
+        zp = posData[0][:,2]
+        
+        scat = ax.scatter(xp, yp, zp, c=0.5 * np.linalg.norm(self.vel, axis=1)**2, cmap="cool",
+                    vmax=vmax, vmin=vmin)
+        ax.set_xlim((-1,1))
+        ax.set_ylim((-1,1))
+        ax.set_zlim((-1,1))
+
+        
+       
+
+        def update(frame):
+
+            scat._offsets3d = (posData[frame][:,0], posData[frame][:,1], posData[frame][:,2])
+            scat.set_array(0.5 * np.linalg.norm(velData[frame], axis=1)**2)
+            # energy_plot.set_xdata(times)
+            # energy_plot.set_ydata(energies)
+            # ax_2d.set_xlim([0, times[-1]])
+            # ax_2d.set_ylim([0, max(energies) * 2])
+            return (scat, )
+        
+        ani = animation.FuncAnimation(fig = fig, func = update, frames = numdt, interval = dt * 1000)
+        plt.show()
+
+
     
     @staticmethod
     def _sphericalToCart(coord):
@@ -235,6 +301,6 @@ class ParticleSimulator:
 
 s = ParticleSimulator()
 #s.run()
-s.run()
+s.runPre(0.01, 5)
 
 # %%

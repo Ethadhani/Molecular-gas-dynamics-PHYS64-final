@@ -21,7 +21,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, N: int = 2):
+    def __init__(self, N: int = 100):
         '''
             Initializes the particle simulation
 
@@ -104,7 +104,7 @@ class ParticleSimulator:
         #change the velocity from collision
 
         # print(np.sum(self.vel[outside_indices] @ np.transpose(normal_vector), axis=1)[:, None])
-        projected_velocity =(self.vel[outside_indices] @ np.transpose(normal_vector)) * normal_vector
+        projected_velocity =(self.vel[outside_indices] @ np.transpose(normal_vector)).diagonal()[:,None] * normal_vector
         self.vel[outside_indices] -= 2 * projected_velocity 
         
 
@@ -128,7 +128,7 @@ class ParticleSimulator:
 
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
-        ax.plot_surface(x, y, z, alpha=0.1)
+        # ax.plot_surface(x, y, z, alpha=0.1)
         vmin = 0
         vmax = 2 * self.energy() / self.N
         # fig.colorbar(mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin, vmax), cmap='hot_r'),

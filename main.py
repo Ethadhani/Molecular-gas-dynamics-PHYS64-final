@@ -22,7 +22,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, N: int = 100):
+    def __init__(self, N: int = 200):
         '''
             Initializes the particle simulation
 
@@ -212,8 +212,8 @@ class ParticleSimulator:
 
         # energy_plot = ax_2d.plot(times, energies)[0]
         # ax.plot_surface(x, y, z, alpha=0.1)
-        vmin = 0
-        vmax = 2 * energies[0] / self.N
+        # vmin = 0
+        # vmax = 2 * energies[0] / self.N
         # fig.colorbar(mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin, vmax), cmap='hot_r'),
         #      ax=ax, orientation='vertical', label='Kinetic Energy')
 
@@ -226,8 +226,8 @@ class ParticleSimulator:
         yp = posData[0][:,1]
         zp = posData[0][:,2]
         
-        scat = ax.scatter(xp, yp, zp, c=0.5 * np.linalg.norm(self.vel, axis=1)**2, cmap="cool",
-                    vmax=vmax, vmin=vmin)
+        scat = ax.scatter(xp, yp, zp, c=np.linalg.norm(self.vel, axis=1), cmap="cool",
+                    )#vmax=vmax, vmin=vmin)
         ax.set_xlim((-1,1))
         ax.set_ylim((-1,1))
         ax.set_zlim((-1,1))
@@ -238,7 +238,7 @@ class ParticleSimulator:
         def update(frame):
 
             scat._offsets3d = (posData[frame][:,0], posData[frame][:,1], posData[frame][:,2])
-            scat.set_array(0.5 * np.linalg.norm(velData[frame], axis=1)**2)
+            scat.set_array(np.linalg.norm(velData[frame], axis=1))
             # energy_plot.set_xdata(times)
             # energy_plot.set_ydata(energies)
             # ax_2d.set_xlim([0, times[-1]])

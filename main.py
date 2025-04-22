@@ -20,7 +20,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, N: int = 2):
+    def __init__(self, N: int = 40):
         '''
             Initializes the particle simulation
 
@@ -30,7 +30,7 @@ class ParticleSimulator:
         self.N = N
         rng = default_rng()
         # generate starting positions in spherical coordinates so that we stay withing our bounds
-        spherCoord = rng.uniform([1, 0, 0],[2, np.pi, 2 * np.pi], size=(self.N, 3))
+        spherCoord = rng.uniform([0, 0, 0],[1, np.pi, 2 * np.pi], size=(self.N, 3))
 
         self.pos =  self._sphericalToCart(spherCoord)
 
@@ -93,7 +93,8 @@ class ParticleSimulator:
         # this reflects the change in velocity due to elastic collision with the inside of the sphere
     #https://stackoverflow.com/questions/15616742/vectorized-way-of-calculating-row-wise-dot-product-two-matrices-with-scipy
     
-        projected_velocity = self.vel[outside_indices] - np.sum(self.vel[outside_indices] @ np.transpose(normal_vector), axis=1) * normal_vector
+    #https://stackoverflow.com/questions/68245372/how-to-multiply-each-row-in-matrix-by-its-scalar-in-numpy
+        projected_velocity = self.vel[outside_indices] - np.sum(self.vel[outside_indices] @ np.transpose(normal_vector), axis=1)[:, None] * normal_vector
         self.vel[outside_indices] -= 2 * projected_velocity 
 
     def energy(self) -> None:

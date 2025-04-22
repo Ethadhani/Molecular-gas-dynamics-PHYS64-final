@@ -7,12 +7,13 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.animation as animation
 import matplotlib as mpl
+import sys
 
 MASS = 1 # arbitrary unit system
 # Potential constants
-V0 = 1 
-A = 0.01 # initial guess that we can change later
-initial_velocity = 0.05
+V0 = 0
+A = 0.1 # initial guess that we can change later
+initial_velocity = 1
 
 # type indicating (x, y, z) coordinates
 Coordinate = Tuple[float, float, float]
@@ -20,7 +21,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, N: int = 40):
+    def __init__(self, N: int = 10):
         '''
             Initializes the particle simulation
 
@@ -32,7 +33,7 @@ class ParticleSimulator:
         # generate starting positions in spherical coordinates so that we stay withing our bounds
         spherCoord = rng.uniform([0, 0, 0],[1, np.pi, 2 * np.pi], size=(self.N, 3))
 
-        self.pos =  self._sphericalToCart(spherCoord)
+        self.pos = self._sphericalToCart(spherCoord)
 
         # generate velocity with constant magnitude v_initial
         # asking numpy RNG to give a number between v_i and v_i each time should yield v_i 
@@ -43,7 +44,7 @@ class ParticleSimulator:
 
         # self.accel = np.zeros((3, self.N))
     
-    def step(self, dt = 0.1) -> None:
+    def step(self, dt = 0.01) -> None:
         """
             Runs one time step of the simulation
         """
@@ -80,10 +81,13 @@ class ParticleSimulator:
         """Redirects particles which are outside of the unit sphere"""
         norms = np.linalg.norm(self.pos, axis=1)
         # indices of all particles outside the unit sphere
-        outside_indices = np.where(norms >= 1)
+        
+        outside_indices = np.where(norms > 1)
 
         # outward normal vector of the sphere which we will use to find the tangent plane
-        normal_vector = -1 * self.pos[outside_indices]
+        normal_vector =  self.pos[outside_indices]
+        #normalize it
+        normal_vector =  normal_vector / np.linalg.norm(normal_vector, axis=1, keepdims=True)
 
         # if nothing is outside then return
         if np.size(outside_indices) == 0:
@@ -94,8 +98,15 @@ class ParticleSimulator:
     #https://stackoverflow.com/questions/15616742/vectorized-way-of-calculating-row-wise-dot-product-two-matrices-with-scipy
     
     #https://stackoverflow.com/questions/68245372/how-to-multiply-each-row-in-matrix-by-its-scalar-in-numpy
-        projected_velocity = self.vel[outside_indices] - np.sum(self.vel[outside_indices] @ np.transpose(normal_vector), axis=1)[:, None] * normal_vector
+
+        #teleport back into sphere if outside of sphere    
+        self.pos[outside_indices] = normal_vector
+        #change the velocity from collision
+
+        # print(np.sum(self.vel[outside_indices] @ np.transpose(normal_vector), axis=1)[:, None])
+        projected_velocity =(self.vel[outside_indices] @ np.transpose(normal_vector)) * normal_vector
         self.vel[outside_indices] -= 2 * projected_velocity 
+        
 
     def energy(self) -> None:
         """Kinetic energy"""
@@ -129,17 +140,22 @@ class ParticleSimulator:
         yp = self.pos[:,1]
         zp = self.pos[:,2]
         
-        scat = ax.scatter(xp, yp, zp,  c=0.5 * np.linalg.norm(self.vel, axis=1)**2, cmap="hot_r",
+        scat = ax.scatter(xp, yp, zp, c=0.5 * np.linalg.norm(self.vel, axis=1)**2, cmap="hot_r",
                     vmax=vmax, vmin=vmin)
+        ax.set_xlim((-1,1))
+        ax.set_ylim((-1,1))
+        ax.set_zlim((-1,1))
+
         
         # define update function
 
         def update(frame):
             self.step()
-            scat.set_offsets(self.pos)
-            return (scat)
+
+            scat._offsets3d = (self.pos[:,0],self.pos[:,1], self.pos[:,2])
+            return (scat, )
         
-        ani = animation.FuncAnimation(fig = fig, func = update, frames = 40, interval = 30)
+        ani = animation.FuncAnimation(fig = fig, func = update, frames = 1000, interval = 10)
         plt.show()
 
     
@@ -188,6 +204,6 @@ class ParticleSimulator:
 
 s = ParticleSimulator()
 #s.run()
-s.step()
+s.run()
 
 # %%

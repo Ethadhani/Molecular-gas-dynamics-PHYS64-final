@@ -8,11 +8,12 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.animation as animation
 import matplotlib as mpl
 import sys
-
+mpl.rcParams['figure.dpi'] = 200
 MASS = 1 # arbitrary unit system
 # Potential constants
-V0 = 0#0.001
-A = 0.1 # initial guess that we can change later
+V0 = 0.01
+A = 0.02 # initial guess that we can change later
+MIN_SEPARATION = 0.005
 initial_velocity = 1
 
 # type indicating (x, y, z) coordinates
@@ -21,7 +22,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, N: int = 100):
+    def __init__(self, N: int = 250):
         '''
             Initializes the particle simulation
 
@@ -44,7 +45,7 @@ class ParticleSimulator:
 
         # self.accel = np.zeros((3, self.N))
     
-    def step(self, dt = 0.01) -> None:
+    def step(self, dt) -> None:
         """
             Runs one time step of the simulation
         """
@@ -108,9 +109,11 @@ class ParticleSimulator:
         self.vel[outside_indices] -= 2 * projected_velocity 
         
 
-    def energy(self) -> None:
+    def energy(self) -> float:
         """Kinetic energy"""
-        return np.sum(0.5 * MASS * np.square(np.linalg.norm(self.vel, axis = 1)))
+        x = np.sum(0.5 * MASS * np.square(np.linalg.norm(self.vel, axis = 1)))
+        # print(x)
+        return x
     
     def run(self):
         '''
@@ -126,8 +129,14 @@ class ParticleSimulator:
         z = 1 * np.outer(np.ones(np.size(u)), np.cos(v))
         
 
-        fig = plt.figure()
+        fig = plt.figure()#figsize=plt.figaspect(2.))
         ax = fig.add_subplot(projection='3d')
+        # ax_2d = fig.add_subplot(2,1,2)
+
+        energies = [self.energy()]
+        times = [0]
+
+        # energy_plot = ax_2d.plot(times, energies)[0]
         # ax.plot_surface(x, y, z, alpha=0.1)
         vmin = 0
         vmax = 2 * self.energy() / self.N
@@ -151,14 +160,26 @@ class ParticleSimulator:
 
         
         # define update function
+        dt = 0.002
+        # ax_2d.set_xscale('log')
+        # ax_2d.set_yscale('log')
 
         def update(frame):
-            self.step()
+            n = 5
+            for _ in range(n):
+                self.step(dt)
+            # energies.append(self.energy())
+            # times.append(times[-1] + dt * n)
 
             scat._offsets3d = (self.pos[:,0],self.pos[:,1], self.pos[:,2])
+            scat.set_array(0.5 * np.linalg.norm(self.vel, axis=1)**2)
+            # energy_plot.set_xdata(times)
+            # energy_plot.set_ydata(energies)
+            # ax_2d.set_xlim([0, times[-1]])
+            # ax_2d.set_ylim([0, max(energies) * 2])
             return (scat, )
         
-        ani = animation.FuncAnimation(fig = fig, func = update, frames = 1000, interval = 10)
+        ani = animation.FuncAnimation(fig = fig, func = update, frames = 1000, interval = 3)
         plt.show()
 
     
@@ -198,12 +219,19 @@ class ParticleSimulator:
         # z = diff[2]
 
         x, y, z = a-b
+        rsquare = x**2 + y**2 + z**2
+        if rsquare < MIN_SEPARATION**2:
+            rsquare = MIN_SEPARATION**2
 
-        return np.array([
-            -V0 * (A**3 * x * (-(4 * A)/(x**2 + y**2 + z**2)**3 + 3/(x**2 + y**2 + z**2)**(5/2))),
-            -V0 * A**3 * y * (-(4 * A)/(x**2 + y**2 + z**2)**3 + 3/(x**2 + y**2 + z**2)**(5/2)),
-            -V0 * A**3 * z * (-(4 * A)/(x**2 + y**2 + z**2)**3 + 3/(x**2 + y**2 + z**2)**(5/2))
+        F = np.array([
+            -V0 * (A**3 * x * (-(4 * A)/(rsquare)**3 + 3/(rsquare)**(5/2))),
+            -V0 * A**3 * y * (-(4 * A)/(rsquare)**3 + 3/(rsquare)**(5/2)),
+            -V0 * A**3 * z * (-(4 * A)/(rsquare)**3 + 3/(rsquare)**(5/2))
         ])
+        # n = np.linalg.norm(F)
+        # if n > 1:
+        #     print(n)
+        return F
 
 s = ParticleSimulator()
 #s.run()

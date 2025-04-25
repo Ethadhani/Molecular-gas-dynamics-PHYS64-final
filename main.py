@@ -15,7 +15,7 @@ MASS = 1 # arbitrary unit system
 V0 = 0.01
 A = 0.02 # initial guess that we can change later
 MIN_SEPARATION = 0.005
-initial_velocity = 5
+initial_velocity = 1
 
 # type indicating (x, y, z) coordinates
 Coordinate = Tuple[float, float, float]
@@ -23,7 +23,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, N: int = 4):
+    def __init__(self, N: int = 50):
         '''
             Initializes the particle simulation
 
@@ -324,18 +324,18 @@ class ParticleSimulator:
         #     print(n)
         return F
     
-    def runIVP(self, t, frameRate):
+    def runIVP(self, t, fps):
         passedVals = np.zeros((self.N * 2, 3))
-        print(passedVals)
+        # print(passedVals)
         passedVals[: self.N, :] = self.pos
         passedVals[self.N : , :] = self.vel
-        data = solve_ivp(self.dU, t_span=(0,t), y0=passedVals.ravel(), t_eval= np.arange(0, t, frameRate))
+        data = solve_ivp(self.dU, t_span=(0,t), y0=passedVals.ravel(), t_eval= np.linspace(0, t, fps * t))
         
         print('data has been generated! yay!')
 
-        fig = plt.figure(figsize=plt.figaspect(2.))
-        ax = fig.add_subplot(2,1,1,projection='3d')
-        ax_2d = fig.add_subplot(2,1,2)
+        fig = plt.figure()#figsize#=plt.figaspect(2.))
+        ax = fig.add_subplot(projection='3d')
+        # ax_2d = fig.add_subplot(2,1,2)
 
         times = data.t        # ax.plot_surface(x, y, z, alpha=0.1)
         # vmin = 0
@@ -343,14 +343,14 @@ class ParticleSimulator:
         # fig.colorbar(mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin, vmax), cmap='hot_r'),
         #      ax=ax, orientation='vertical', label='Kinetic Energy')
 
-        # #plot sphere
-        # ax.scatter(sphere[:,0], sphere[:,1], sphere[:,2], alpha =0.2)
+        #plot sphere
+        ax.scatter(sphere[:,0], sphere[:,1], sphere[:,2], alpha =0.2)
 
 
         # get the positions in plottable form
         # data.y is NOT the y coordinate, just the solve_ivp output
         posData = data.y
-        print(np.shape(data.y))
+        # print(np.shape(data.y))
         # xp = posData[:self.N, 0]
         # yp = posData[:self.N, 1]
         # zp = posData[:self.N, 3]
@@ -371,7 +371,7 @@ class ParticleSimulator:
 
             # energy_plot.set_xdata(timeData[:frame])
             # energy_plot.set_ydata(KData[:frame])
-            ax_2d.set_xlim((0, times[frame]))
+            # ax_2d.set_xlim((0, times[frame]))
             # ax_2d.set_ylim((0, KData[frame])) # assumption: energy never decreases
             # if frame == 3: # FIXME: this so it is not zero which makes mat plot lib yell at us
             #     print(KData[2:frame])
@@ -380,8 +380,10 @@ class ParticleSimulator:
             #     ax_2d.set_xscale('log')
             return (scat, )
         
-        ani = animation.FuncAnimation(fig = fig, func = update, frames = int(t/frameRate), interval = frameRate * 10)
-        plt.show()
+        ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fps, interval = 1000/fps)
+        # https://stackoverflow.com/questions/37146420/saving-matplotlib-animation-as-mp4
+        ani.save('Particles.mp4', writer = animation.FFMpegWriter(fps=fps))
+        # plt.show()
 
 
     
@@ -397,7 +399,7 @@ class ParticleSimulator:
         # unwraps the conditions into a position matrix and a velocity matrix.
         pos, vel = U.reshape(2, self.N, 3)
         
-        print("vel", vel)
+        # print("vel", vel)
         newVel = self.checkCollisionsWithSphere(pos, vel)
 
         # makes a matrix for each particle position, calculates all the forces 
@@ -418,5 +420,5 @@ class ParticleSimulator:
 s = ParticleSimulator()
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(5, 0.01)
+s.runIVP(10, 45)
 # %%

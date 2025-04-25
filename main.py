@@ -23,7 +23,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, N: int = 1000):
+    def __init__(self, N: int = 100):
         '''
             Initializes the particle simulation
 
@@ -94,7 +94,7 @@ class ParticleSimulator:
 
         # if nothing is outside then return
         if np.size(outside_indices) == 0:
-            return vel
+            return pos, vel
 
         # subtract twice the projection of the velocity onto the tangent plane of the sphere
         # this reflects the change in velocity due to elastic collision with the inside of the sphere
@@ -109,7 +109,7 @@ class ParticleSimulator:
         # print(np.sum(self.vel[outside_indices] @ np.transpose(normal_vector), axis=1)[:, None])
         projected_velocity = (vel[outside_indices] @ np.transpose(normal_vector)).diagonal()[:,None] * normal_vector
         vel[outside_indices] -= 2 * projected_velocity 
-        return vel
+        return pos, vel
         
 
     def energy(self) -> float:
@@ -354,7 +354,7 @@ class ParticleSimulator:
         #      ax=ax, orientation='vertical', label='Kinetic Energy')
 
         #plot sphere
-        ax.scatter(sphere[:,0], sphere[:,1], sphere[:,2], alpha =0.2)
+        # ax.scatter(sphere[:,0], sphere[:,1], sphere[:,2], alpha =0.2)
 
 
         # get the positions in plottable form
@@ -410,7 +410,7 @@ class ParticleSimulator:
         pos, vel = U.reshape(2, self.N, 3)
         
         # print("vel", vel)
-        newVel = self.checkCollisionsWithSphere(pos, vel)
+        pos, newVel = self.checkCollisionsWithSphere(pos, vel)
 
         # makes a matrix for each particle position, calculates all the forces 
         # on it and sums, and divides by mass to get accel

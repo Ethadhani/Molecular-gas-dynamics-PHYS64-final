@@ -9,7 +9,7 @@ import matplotlib.animation as animation
 import matplotlib as mpl
 import sys
 from scipy.integrate import solve_ivp
-mpl.rcParams['figure.dpi'] = 200
+# mpl.rcParams['figure.dpi'] = 200
 MASS = 1 # arbitrary unit system
 # Potential constants
 V0 = 0.01
@@ -23,7 +23,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, N: int = 50):
+    def __init__(self, N: int = 1000):
         '''
             Initializes the particle simulation
 
@@ -33,7 +33,7 @@ class ParticleSimulator:
         self.N = N
         rng = default_rng()
         # generate starting positions in spherical coordinates so that we stay withing our bounds
-        spherCoord = rng.uniform([0, 0, 0],[1, np.pi, 2 * np.pi], size=(self.N, 3))
+        spherCoord = rng.uniform([0, 0, 0], [1, np.pi, 2 * np.pi], size=(self.N, 3))
 
         self.pos = self._sphericalToCart(spherCoord)
 
@@ -331,10 +331,20 @@ class ParticleSimulator:
         passedVals[self.N : , :] = self.vel
         data = solve_ivp(self.dU, t_span=(0,t), y0=passedVals.ravel(), t_eval= np.linspace(0, t, fps * t))
         
+        #plot the sphere taken from matplotlib docs
+        u = np.linspace(0, 2 * np.pi, 20)
+        v = np.linspace(0, np.pi, 20)
+ 
+        x = 1 * np.outer(np.cos(u), np.sin(v))
+        y = 1 * np.outer(np.sin(u), np.sin(v))
+        z = 1 * np.outer(np.ones(np.size(u)), np.cos(v))
+ 
         print('data has been generated! yay!')
 
         fig = plt.figure()#figsize#=plt.figaspect(2.))
         ax = fig.add_subplot(projection='3d')
+        ax.plot_surface(x, y, z, alpha=0.1)
+
         # ax_2d = fig.add_subplot(2,1,2)
 
         times = data.t        # ax.plot_surface(x, y, z, alpha=0.1)
@@ -354,9 +364,9 @@ class ParticleSimulator:
         # xp = posData[:self.N, 0]
         # yp = posData[:self.N, 1]
         # zp = posData[:self.N, 3]
-        xp = posData[:self.N,:]
-        yp = posData[self.N:self.N*2,:]
-        zp = posData[self.N*2:self.N*3,:]
+        xp = posData[:self.N,:].T
+        yp = posData[self.N:self.N*2,:].T
+        zp = posData[self.N*2:self.N*3,:].T
 
         
         scat = ax.scatter(xp[:,0], yp[:,0], zp[:,0])# c=np.linalg.norm(self.vel, axis=1), cmap="cool",
@@ -366,7 +376,7 @@ class ParticleSimulator:
         ax.set_zlim((-1,1))
 
         def update(frame):
-            scat._offsets3d = (xp[:,frame], yp[:,frame], zp[:,frame])
+            scat._offsets3d = (xp[frame], yp[frame], zp[frame])
             # scat.set_array(np.linalg.norm(velData[frame], axis=1))
 
             # energy_plot.set_xdata(timeData[:frame])

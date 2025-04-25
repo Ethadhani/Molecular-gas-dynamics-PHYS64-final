@@ -9,13 +9,13 @@ import matplotlib.animation as animation
 import matplotlib as mpl
 import sys
 from scipy.integrate import solve_ivp
-mpl.rcParams['figure.dpi'] = 30
+mpl.rcParams['figure.dpi'] = 200
 MASS = 1 # arbitrary unit system
 # Potential constants
 V0 = 0.01
 A = 0.02 # initial guess that we can change later
 MIN_SEPARATION = 0.005
-initial_velocity = 1
+initial_velocity = 5
 
 # type indicating (x, y, z) coordinates
 Coordinate = Tuple[float, float, float]
@@ -79,21 +79,22 @@ class ParticleSimulator:
 
         self.checkCollisionsWithSphere()
     
-    def checkCollisionsWithSphere(self):
+    @staticmethod
+    def checkCollisionsWithSphere(pos, vel):
         """Redirects particles which are outside of the unit sphere"""
-        norms = np.linalg.norm(self.pos, axis=1)
+        norms = np.linalg.norm(pos, axis=1)
         # indices of all particles outside the unit sphere
         
         outside_indices = np.where(norms > 1)
 
         # outward normal vector of the sphere which we will use to find the tangent plane
-        normal_vector =  self.pos[outside_indices]
+        normal_vector = pos[outside_indices]
         #normalize it
-        normal_vector =  normal_vector / np.linalg.norm(normal_vector, axis=1, keepdims=True)
+        normal_vector = normal_vector / np.linalg.norm(normal_vector, axis=1, keepdims=True)
 
         # if nothing is outside then return
         if np.size(outside_indices) == 0:
-            return
+            return vel
 
         # subtract twice the projection of the velocity onto the tangent plane of the sphere
         # this reflects the change in velocity due to elastic collision with the inside of the sphere
@@ -102,12 +103,13 @@ class ParticleSimulator:
     #https://stackoverflow.com/questions/68245372/how-to-multiply-each-row-in-matrix-by-its-scalar-in-numpy
 
         #teleport back into sphere if outside of sphere    
-        self.pos[outside_indices] = normal_vector
+        pos[outside_indices] = normal_vector
         #change the velocity from collision
 
         # print(np.sum(self.vel[outside_indices] @ np.transpose(normal_vector), axis=1)[:, None])
-        projected_velocity =(self.vel[outside_indices] @ np.transpose(normal_vector)).diagonal()[:,None] * normal_vector
-        self.vel[outside_indices] -= 2 * projected_velocity 
+        projected_velocity = (vel[outside_indices] @ np.transpose(normal_vector)).diagonal()[:,None] * normal_vector
+        vel[outside_indices] -= 2 * projected_velocity 
+        return vel
         
 
     def energy(self) -> float:
@@ -289,24 +291,34 @@ class ParticleSimulator:
         """
 
         # ensure we dont calculate the force of a particle on itself
-        if a == b:
-            return 0
+        # print(f"a:\n{a}\nb:\n{b}")
+        # if np.all(a == b):
+        #     return 0
         # x,y,z components of r
         # diff = a - b
         # x = diff[0]
         # y = diff[1]
         # z = diff[2]
 
-        x, y, z = a-b
-        rsquare = x**2 + y**2 + z**2
-        if rsquare < MIN_SEPARATION**2:
-            rsquare = MIN_SEPARATION**2
+        radii = a - b
+        x = radii[:,0]
+        y = radii[:,1]
+        z = radii[:,2]
+        rsquare_real = x**2 + y**2 + z**2
+        # find the zero radius index, which is the index of the force of the particle on itself
+        # which is not a physical force and therefore will be set to zero later.
+        zero_radius_idx = np.where(rsquare_real == 0)[0][0]
+        # replace too-small separations by MIN_SEPARATION
+        rsquare_corrected = np.where(rsquare_real < MIN_SEPARATION ** 2, MIN_SEPARATION ** 2, rsquare_real)
 
         F = np.array([
-            -V0 * (A**3 * x * (-(4 * A)/(rsquare)**3 + 3/(rsquare)**(5/2))),
-            -V0 * A**3 * y * (-(4 * A)/(rsquare)**3 + 3/(rsquare)**(5/2)),
-            -V0 * A**3 * z * (-(4 * A)/(rsquare)**3 + 3/(rsquare)**(5/2))
+            -V0 * (A**3 * x * (-(4 * A)/(rsquare_corrected)**3 + 3/(rsquare_corrected)**(5/2))),
+            -V0 * A**3 * y * (-(4 * A)/(rsquare_corrected)**3 + 3/(rsquare_corrected)**(5/2)),
+            -V0 * A**3 * z * (-(4 * A)/(rsquare_corrected)**3 + 3/(rsquare_corrected)**(5/2))
         ])
+        F[:,zero_radius_idx] = 0 # remove force of a particle on itself
+        # print(F)
+        # An array has 
         # n = np.linalg.norm(F)
         # if n > 1:
         #     print(n)
@@ -318,7 +330,58 @@ class ParticleSimulator:
         passedVals[: self.N, :] = self.pos
         passedVals[self.N : , :] = self.vel
         data = solve_ivp(self.dU, t_span=(0,t), y0=passedVals.ravel(), t_eval= np.arange(0, t, frameRate))
-        print(data)
+        
+        print('data has been generated! yay!')
+
+        fig = plt.figure(figsize=plt.figaspect(2.))
+        ax = fig.add_subplot(2,1,1,projection='3d')
+        ax_2d = fig.add_subplot(2,1,2)
+
+        times = data.t        # ax.plot_surface(x, y, z, alpha=0.1)
+        # vmin = 0
+        # vmax = 2 * energies[0] / self.N
+        # fig.colorbar(mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin, vmax), cmap='hot_r'),
+        #      ax=ax, orientation='vertical', label='Kinetic Energy')
+
+        # #plot sphere
+        # ax.scatter(sphere[:,0], sphere[:,1], sphere[:,2], alpha =0.2)
+
+
+        # get the positions in plottable form
+        # data.y is NOT the y coordinate, just the solve_ivp output
+        posData = data.y
+        print(np.shape(data.y))
+        # xp = posData[:self.N, 0]
+        # yp = posData[:self.N, 1]
+        # zp = posData[:self.N, 3]
+        xp = posData[:self.N,:]
+        yp = posData[self.N:self.N*2,:]
+        zp = posData[self.N*2:self.N*3,:]
+
+        
+        scat = ax.scatter(xp[:,0], yp[:,0], zp[:,0])# c=np.linalg.norm(self.vel, axis=1), cmap="cool",
+                #    )#vmax=vmax, vmin=vmin)
+        ax.set_xlim((-1,1))
+        ax.set_ylim((-1,1))
+        ax.set_zlim((-1,1))
+
+        def update(frame):
+            scat._offsets3d = (xp[:,frame], yp[:,frame], zp[:,frame])
+            # scat.set_array(np.linalg.norm(velData[frame], axis=1))
+
+            # energy_plot.set_xdata(timeData[:frame])
+            # energy_plot.set_ydata(KData[:frame])
+            ax_2d.set_xlim((0, times[frame]))
+            # ax_2d.set_ylim((0, KData[frame])) # assumption: energy never decreases
+            # if frame == 3: # FIXME: this so it is not zero which makes mat plot lib yell at us
+            #     print(KData[2:frame])
+            #     ax_2d.set_yscale('log')
+                # sys.exit()
+            #     ax_2d.set_xscale('log')
+            return (scat, )
+        
+        ani = animation.FuncAnimation(fig = fig, func = update, frames = int(t/frameRate), interval = frameRate * 10)
+        plt.show()
 
 
     
@@ -333,11 +396,17 @@ class ParticleSimulator:
 
         # unwraps the conditions into a position matrix and a velocity matrix.
         pos, vel = U.reshape(2, self.N, 3)
+        
+        print("vel", vel)
+        newVel = self.checkCollisionsWithSphere(pos, vel)
 
-        newVel = vel
         # makes a matrix for each particle position, calculates all the forces 
         # on it and sums, and divides by mass to get accel
-        newAccel = (lambda r: np.sum(self.force(pos, np.tile(r, (self.N,1)))) / MASS)(pos)
+        newAccel = np.apply_along_axis(
+            lambda r: np.sum(self.force(pos, np.tile(r, (self.N,1))), axis = 1) / MASS,
+            axis=1,
+            arr=pos
+        )
 
         # re wraps the velocity and acceloration to be passed back
         passedVals = np.zeros((self.N * 2, 3))
@@ -349,5 +418,5 @@ class ParticleSimulator:
 s = ParticleSimulator()
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(2, 0.1)
+s.runIVP(5, 0.01)
 # %%

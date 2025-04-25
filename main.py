@@ -8,12 +8,13 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.animation as animation
 import matplotlib as mpl
 import sys
-mpl.rcParams['figure.dpi'] = 200
+from scipy.integrate import solve_ivp
+mpl.rcParams['figure.dpi'] = 30
 MASS = 1 # arbitrary unit system
 # Potential constants
 V0 = 0.01
 A = 0.02 # initial guess that we can change later
-MIN_SEPARATION = 0.003
+MIN_SEPARATION = 0.005
 initial_velocity = 1
 
 # type indicating (x, y, z) coordinates
@@ -22,7 +23,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, N: int = 200):
+    def __init__(self, N: int = 4):
         '''
             Initializes the particle simulation
 
@@ -286,6 +287,10 @@ class ParticleSimulator:
                 * (y direction) = -V_0 a^3 y (-(4 a)/(x^2 + y^2 + z^2)^3 + 3/(x^2 + y^2 + z^2)^(5/2))
                 * (z direction) = -V_0 a^3 z (-(4 a)/(x^2 + y^2 + z^2)^3 + 3/(x^2 + y^2 + z^2)^(5/2))
         """
+
+        # ensure we dont calculate the force of a particle on itself
+        if a == b:
+            return 0
         # x,y,z components of r
         # diff = a - b
         # x = diff[0]
@@ -306,9 +311,43 @@ class ParticleSimulator:
         # if n > 1:
         #     print(n)
         return F
+    
+    def runIVP(self, t, frameRate):
+        passedVals = np.zeros((self.N * 2, 3))
+        print(passedVals)
+        passedVals[: self.N, :] = self.pos
+        passedVals[self.N : , :] = self.vel
+        data = solve_ivp(self.dU, t_span=(0,t), y0=passedVals.ravel(), t_eval= np.arange(0, t, frameRate))
+        print(data)
+
+
+    
+    def dU(self, t, U):
+        '''
+            returns the derivative of position and velocity 
+            args:
+                U unpacks to: x, y, z, vx, vy, vz
+            returns:
+                vx, vy, vz, ax, ay, az
+        '''
+
+        # unwraps the conditions into a position matrix and a velocity matrix.
+        pos, vel = U.reshape(2, self.N, 3)
+
+        newVel = vel
+        # makes a matrix for each particle position, calculates all the forces 
+        # on it and sums, and divides by mass to get accel
+        newAccel = (lambda r: np.sum(self.force(pos, np.tile(r, (self.N,1)))) / MASS)(pos)
+
+        # re wraps the velocity and acceloration to be passed back
+        passedVals = np.zeros((self.N * 2, 3))
+        passedVals[: self.N, :] = newVel
+        passedVals[self.N : , :] = newAccel
+        
+        return passedVals.ravel()
 
 s = ParticleSimulator()
 #s.run()
-s.runPre(0.005, 10)
-
+# s.runPre(0.01, 5)
+s.runIVP(2, 0.1)
 # %%

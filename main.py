@@ -14,7 +14,6 @@ MASS = 1 # arbitrary unit system
 # Potential constants
 V0 = 0.01
 A = 0.02 # initial guess that we can change later
-MIN_SEPARATION = 0.005
 initial_velocity = 1
 
 # type indicating (x, y, z) coordinates
@@ -23,62 +22,41 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, N: int = 100):
+    def __init__(self, cuberoot_N: int = 2):
         '''
             Initializes the particle simulation
 
             Param:
                 N: the number of particles in the simulation
         '''
-        self.N = N
+        self.N = cuberoot_N**3
         rng = default_rng()
+
         # generate starting positions in spherical coordinates so that we stay withing our bounds
         spherCoord = rng.uniform([0, 0, 0], [1, np.pi, 2 * np.pi], size=(self.N, 3))
 
-        self.pos = self._sphericalToCart(spherCoord)
+        # generate particles on a grid in a cube of side length 1.4 inside the sphere
+        self.posX, self.posY, self.posZ = np.meshgrid(
+            np.linspace(-0.7, 0.7, cuberoot_N),
+            np.linspace(-0.7, 0.7, cuberoot_N),
+            np.linspace(-0.7, 0.7, cuberoot_N)
+        )
+        self.posX = self.posX.ravel()
+        self.posY = self.posY.ravel()
+        self.posZ = self.posZ.ravel()
 
         # generate velocity with constant magnitude v_initial
         # asking numpy RNG to give a number between v_i and v_i each time should yield v_i 
-        self.vel = self._sphericalToCart(rng.uniform(
+        velocities = self._sphericalToCart(rng.uniform(
             [initial_velocity, 0, 0],
             [initial_velocity, np.pi, 2 * np.pi],  size=(self.N, 3)
         ))
+        self.velX = velocities[:, 0]
+        self.velY = velocities[:, 1]
+        self.velZ = velocities[:, 2]
 
         # self.accel = np.zeros((3, self.N))
-    
-    def step(self, dt) -> None:
-        """
-            Runs one time step of the simulation
-        """
-        # for a in self.pos:
-        #     for b in self.pos
-        #         stuff(a,b)
-        # see https://stackoverflow.com/questions/60559050/python-apply-function-over-pairwise-elements-of-array-without-using-loops
-        # https://numpy.org/doc/2.2/reference/generated/numpy.meshgrid.html
-        # print(np.dot(self.pos, self.pos))
-        # # https://stackoverflow.com/questions/57032234/multidimensional-numpy-outer-without-flatten
-        # all_pairwise_particle_distances = np.multiply.outer(self.pos ,  np.ones((self.N)))
-        # print("hi", (all_pairwise_particle_distances - all_pairwise_particle_distances.T).T)
-        # forces = self.force(*np.meshgrid(self.pos, self.pos, sparse=True))
-        # print(forces, self.pos)
-        for a_idx in range(self.N):
-            for b_idx in range(a_idx + 1, self.N): # +1 so particles dont explode
-                accel = self.force(self.pos[a_idx], self.pos[b_idx]) #/ MASS
-                self.vel[b_idx] += accel * dt
-                self.vel[a_idx] -= accel * dt 
-        self.pos += self.vel * dt
-
-        # check if we have exited the wall,
-        
-        #indicies = np.where(norms >=1)
-        # np.where maybe to swap velocities, 
-        # take the tangent plane of sphere, swap velocity that is normal to it which should be same as subtracting twice projection
-        # https://math.stackexchange.com/questions/633181/formula-to-project-a-vector-onto-a-plane
-
-        # check for walls with tangent pl
-
-        self.checkCollisionsWithSphere()
-    
+  
     @staticmethod
     def checkCollisionsWithSphere(pos, vel):
         """Redirects particles which are outside of the unit sphere"""
@@ -117,149 +95,6 @@ class ParticleSimulator:
         x = np.sum(0.5 * MASS * np.square(np.linalg.norm(self.vel, axis = 1)))
         # print(x)
         return x
-    
-    def run(self):
-        '''
-
-        '''
-        # taken from matplotlib documentation and research code
-
-        #plot the sphere taken from matplotlib docs
-        u = np.linspace(0, 2 * np.pi, 20)
-        v = np.linspace(0, np.pi, 20)
-        x = 1 * np.outer(np.cos(u), np.sin(v))
-        y = 1 * np.outer(np.sin(u), np.sin(v))
-        z = 1 * np.outer(np.ones(np.size(u)), np.cos(v))
-        
-
-        fig = plt.figure()#figsize=plt.figaspect(2.))
-        ax = fig.add_subplot(projection='3d')
-        # ax_2d = fig.add_subplot(2,1,2)
-
-        energies = [self.energy()]
-        times = [0]
-
-        # energy_plot = ax_2d.plot(times, energies)[0]
-        # ax.plot_surface(x, y, z, alpha=0.1)
-        vmin = 0
-        vmax = 2 * self.energy() / self.N
-        # fig.colorbar(mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin, vmax), cmap='hot_r'),
-        #      ax=ax, orientation='vertical', label='Kinetic Energy')
-
-        # #plot sphere
-        # ax.scatter(sphere[:,0], sphere[:,1], sphere[:,2], alpha =0.2)
-
-
-        # get the positions in plottable form
-        xp = self.pos[:,0]
-        yp = self.pos[:,1]
-        zp = self.pos[:,2]
-        
-        scat = ax.scatter(xp, yp, zp, c=0.5 * np.linalg.norm(self.vel, axis=1)**2, cmap="hot_r",
-                    vmax=vmax, vmin=vmin)
-        ax.set_xlim((-1,1))
-        ax.set_ylim((-1,1))
-        ax.set_zlim((-1,1))
-
-        
-        # define update function
-        dt = 0.002
-        # ax_2d.set_xscale('log')
-        # ax_2d.set_yscale('log')
-
-        def update(frame):
-            n = 5
-            for _ in range(n):
-                self.step(dt)
-            # energies.append(self.energy())
-            # times.append(times[-1] + dt * n)
-
-            scat._offsets3d = (self.pos[:,0],self.pos[:,1], self.pos[:,2])
-            scat.set_array(0.5 * np.linalg.norm(self.vel, axis=1)**2)
-            # energy_plot.set_xdata(times)
-            # energy_plot.set_ydata(energies)
-            # ax_2d.set_xlim([0, times[-1]])
-            # ax_2d.set_ylim([0, max(energies) * 2])
-            return (scat, )
-        
-        ani = animation.FuncAnimation(fig = fig, func = update, frames = 1000, interval = 3)
-        plt.show()
-
-    def runPre(self, dt, time):
-
-
-        # pre compute
-
-        numdt = int(time / dt)
-
-        posData = np.zeros((numdt, self.N, 3))
-        velData = np.zeros((numdt, self.N, 3))
-        KData = np.zeros(numdt)
-        timeData = np.zeros(numdt)
-
-        time = 0
-        for i in range(numdt):
-            posData[i] = self.pos
-            velData[i] = self.vel
-            KData[i] = self.energy()
-            if KData[i] == 0:
-                KData[i] = 0.01
-            timeData[i] = time
-            if i % 10 == 0:
-                print(time)
-            time+= dt
-            self.step(dt)
-        KData = np.abs(KData)
-
-        print('data has been generated! yay!')
-
-        fig = plt.figure(figsize=plt.figaspect(2.))
-        ax = fig.add_subplot(2,1,1,projection='3d')
-        ax_2d = fig.add_subplot(2,1,2)
-
-        times = []
-        energies = []
-        energy_plot = ax_2d.plot(times, energies)[0]
-        # ax.plot_surface(x, y, z, alpha=0.1)
-        # vmin = 0
-        # vmax = 2 * energies[0] / self.N
-        # fig.colorbar(mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin, vmax), cmap='hot_r'),
-        #      ax=ax, orientation='vertical', label='Kinetic Energy')
-
-        # #plot sphere
-        # ax.scatter(sphere[:,0], sphere[:,1], sphere[:,2], alpha =0.2)
-
-
-        # get the positions in plottable form
-        xp = posData[0][:,0]
-        yp = posData[0][:,1]
-        zp = posData[0][:,2]
-        
-        scat = ax.scatter(xp, yp, zp, c=np.linalg.norm(self.vel, axis=1), cmap="cool",
-                    )#vmax=vmax, vmin=vmin)
-        ax.set_xlim((-1,1))
-        ax.set_ylim((-1,1))
-        ax.set_zlim((-1,1))
-
-        def update(frame):
-            scat._offsets3d = (posData[frame][:,0], posData[frame][:,1], posData[frame][:,2])
-            scat.set_array(np.linalg.norm(velData[frame], axis=1))
-
-            energy_plot.set_xdata(timeData[:frame])
-            energy_plot.set_ydata(KData[:frame])
-            ax_2d.set_xlim((0, timeData[frame]))
-            ax_2d.set_ylim((0, KData[frame])) # assumption: energy never decreases
-            # if frame == 3: # FIXME: this so it is not zero which makes mat plot lib yell at us
-            #     print(KData[2:frame])
-            #     ax_2d.set_yscale('log')
-                # sys.exit()
-            #     ax_2d.set_xscale('log')
-            return (scat, )
-        
-        ani = animation.FuncAnimation(fig = fig, func = update, frames = numdt, interval = dt * 1000)
-        plt.show()
-
-
     
     @staticmethod
     def _sphericalToCart(coord):
@@ -304,12 +139,13 @@ class ParticleSimulator:
         x = radii[:,0]
         y = radii[:,1]
         z = radii[:,2]
+        print("xyz:", x,y,z)
         rsquare_real = x**2 + y**2 + z**2
         # find the zero radius index, which is the index of the force of the particle on itself
         # which is not a physical force and therefore will be set to zero later.
         zero_radius_idx = np.where(rsquare_real == 0)[0][0]
         # replace too-small separations by MIN_SEPARATION
-        rsquare_corrected = np.where(rsquare_real < MIN_SEPARATION ** 2, MIN_SEPARATION ** 2, rsquare_real)
+        rsquare_corrected = rsquare_real #np.where(rsquare_real < MIN_SEPARATION ** 2, MIN_SEPARATION ** 2, rsquare_real)
 
         F = np.array([
             -V0 * (A**3 * x * (-(4 * A)/(rsquare_corrected)**3 + 3/(rsquare_corrected)**(5/2))),
@@ -317,7 +153,6 @@ class ParticleSimulator:
             -V0 * A**3 * z * (-(4 * A)/(rsquare_corrected)**3 + 3/(rsquare_corrected)**(5/2))
         ])
         F[:,zero_radius_idx] = 0 # remove force of a particle on itself
-        # print(F)
         # An array has 
         # n = np.linalg.norm(F)
         # if n > 1:
@@ -327,9 +162,15 @@ class ParticleSimulator:
     def runIVP(self, t, fps):
         passedVals = np.zeros((self.N * 2, 3))
         # print(passedVals)
-        passedVals[: self.N, :] = self.pos
-        passedVals[self.N : , :] = self.vel
-        data = solve_ivp(self.dU, t_span=(0,t), y0=passedVals.ravel(), t_eval= np.linspace(0, t, fps * t))
+        passedVals = np.concatenate((
+            self.posX,
+            self.posY,
+            self.posZ,
+            self.velX,
+            self.velY,
+            self.velZ
+        ))
+        data = solve_ivp(self.dU, t_span=(0,t), y0=passedVals, t_eval= np.linspace(0, t, fps * t))
         
         #plot the sphere taken from matplotlib docs
         u = np.linspace(0, 2 * np.pi, 20)
@@ -408,6 +249,8 @@ class ParticleSimulator:
 
         # unwraps the conditions into a position matrix and a velocity matrix.
         pos, vel = U.reshape(2, self.N, 3)
+        print("pos:", pos)
+        print("vel:", vel)
         
         # print("vel", vel)
         pos, newVel = self.checkCollisionsWithSphere(pos, vel)

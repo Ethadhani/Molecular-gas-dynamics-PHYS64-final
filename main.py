@@ -246,9 +246,11 @@ class ParticleSimulator:
             returns:
                 vx, vy, vz, ax, ay, az
         '''
-
+        N = self.N
         # unwraps the conditions into a position matrix and a velocity matrix.
-        pos, vel = U.reshape(2, self.N, 3)
+        pos = np.array([U[:N], U[N:2*N], U[2*N:3*N]]).T
+        vel = np.array([U[3*N:4*N], U[4*N:5*N], U[5*N:6*N]]).T
+        
         print("pos:", pos)
         print("vel:", vel)
         

@@ -77,7 +77,6 @@ class ParticleSimulator:
     
         # # if nothing is outside then return
         if np.size(outside_indices) == 0:
-            print('Nothing outside')
             return pos, vel
         # subtract twice the projection of the velocity onto the tangent plane of the sphere
         # this reflects the change in velocity due to elastic collision with the inside of the sphere
@@ -87,7 +86,7 @@ class ParticleSimulator:
         #print('norm',normal_vector)
         #teleport back into sphere if outside of sphere  
         # print("MADE IT", outside_indices, pos)  
-        pos = normal_vector #[outside_indices] = normal_vector
+        pos[outside_indices] = normal_vector #[outside_indices] = normal_vector
         #change the velocity from collision
         
         
@@ -197,7 +196,6 @@ class ParticleSimulator:
         frame = 0
         timeList = np.linspace(0, t, int(fps * t ))
         while frame < int(fps * t):
-            print("looping")
             data = solve_ivp(
                 self.dU, t_span=(timeList[frame],t), y0=passedVals,
                 t_eval = timeList[frame:],
@@ -216,14 +214,13 @@ class ParticleSimulator:
             if len(data.y_events[0]) == 0:
                 break
             thisInst = data.y_events[0][0]
-
             pos = np.array([thisInst[:N], thisInst[N:N*2], thisInst[N*2:N*3]]).T
             vel = np.array([thisInst[N*3:N*4], thisInst[4*N:N*5], thisInst[N*5:N*6]]).T
             pos, vel = self.checkCollisionsWithSphere(pos, vel)
-            
             pos = pos.T
             vel = vel.T
             passedVals = np.concatenate((pos[0], pos[1], pos[2], vel[0], vel[1], vel[2]))
+            print(timeList[frame])
         #plot the sphere taken from matplotlib docs
         u = np.linspace(0, 2 * np.pi, 20)
         v = np.linspace(0, np.pi, 20)
@@ -300,7 +297,6 @@ class ParticleSimulator:
                 vx, vy, vz, ax, ay, az
         '''
         N = self.N
-        print(U)
         # unwraps the conditions into a position matrix and a velocity matrix.
         pos = np.array([U[:N], U[N:2*N], U[2*N:3*N]]).T
         vel = np.array([U[3*N:4*N], U[4*N:5*N], U[5*N:6*N]])

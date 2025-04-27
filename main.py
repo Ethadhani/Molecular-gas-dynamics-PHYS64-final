@@ -71,19 +71,19 @@ class ParticleSimulator:
     def checkCollisionsWithSphere(pos, vel):
         """Redirects particles which are outside of the unit sphere"""
         print(pos)
-        pos = np.array([pos])
-        norms = np.linalg.norm(pos, axis=1) #NEED TO FIX FOR MANY PARTICLEs
+        # pos = np.array([pos])
+        norms = np.linalg.norm(pos, axis=0) #NEED TO FIX FOR MANY PARTICLEs
         # indices of all particles outside the unit sphere
-        outside_indices = np.where(norms > 1)
-
+        # outside_indices = np.where(norms > 1)
+# 
         # outward normal vector of the sphere which we will use to find the tangent plane
-        normal_vector = pos[outside_indices]
+        normal_vector = pos#[outside_indices]
         #normalize it
-        normal_vector = normal_vector / np.linalg.norm(normal_vector, axis=1, keepdims=True)
+        normal_vector = normal_vector / np.linalg.norm(normal_vector, axis=0, keepdims=True)
     
-        # if nothing is outside then return
-        if np.size(outside_indices) == 0:
-            return pos[0], vel
+        # # if nothing is outside then return
+        # if np.size(outside_indices) == 0:
+        #     return pos[0], vel
         # subtract twice the projection of the velocity onto the tangent plane of the sphere
         # this reflects the change in velocity due to elastic collision with the inside of the sphere
     #https://stackoverflow.com/questions/15616742/vectorized-way-of-calculating-row-wise-dot-product-two-matrices-with-scipy
@@ -91,22 +91,21 @@ class ParticleSimulator:
     #https://stackoverflow.com/questions/68245372/how-to-multiply-each-row-in-matrix-by-its-scalar-in-numpy
         #print('norm',normal_vector)
         #teleport back into sphere if outside of sphere  
-        print("MADE IT", outside_indices, pos)  
-        sys.exit(0)
-        pos[outside_indices] = normal_vector
+        # print("MADE IT", outside_indices, pos)  
+        pos = normal_vector #[outside_indices] = normal_vector
         #change the velocity from collision
         
         HOW_LONG_A_COLLISION_TAKES = 0.001
         #print((vel[outside_indices] @ np.transpose(normal_vector)).diagonal()[:,None])
         # print(np.sum(self.vel[outside_indices] @ np.transpose(normal_vector), axis=1)[:, None])
-        projected_velocity = (vel[outside_indices] @ np.transpose(normal_vector)).diagonal()[:,None] * normal_vector
+        projected_velocity = vel @ np.transpose(normal_vector) * normal_vector
         if np.linalg.norm(vel) > 0.9:
             print('vel', vel)
             print('proj', projected_velocity)
-        vel[outside_indices] -= 2 * projected_velocity
+        vel -= 2 * projected_velocity
         #accel[outside_indices] -= 2 * projected_velocity / HOW_LONG_A_COLLISION_TAKES
         #print('vel',projected_velocity)
-        return pos[0], vel
+        return pos, vel
         
 
     def energy(self) -> float:
@@ -209,7 +208,7 @@ class ParticleSimulator:
         xVel = []
         yVel = []
         zVel = []
-        while time_reached <= t:
+        while time_reached < t:
             print("looping")
             data = solve_ivp(
                 self.dU, t_span=(time_reached,t), y0=passedVals,

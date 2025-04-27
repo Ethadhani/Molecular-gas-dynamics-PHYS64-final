@@ -22,7 +22,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, cuberoot_N: int = 2):
+    def __init__(self, cuberoot_N: int = 4):
         '''
             Initializes the particle simulation
 
@@ -168,7 +168,7 @@ class ParticleSimulator:
         return F
     
     def runIVP(self, t, fps):
-        passedVals = np.zeros((self.N * 2, 3))
+
         # print(passedVals)
         passedVals = np.concatenate((
             self.posX,
@@ -195,9 +195,10 @@ class ParticleSimulator:
         dataset = np.zeros((N * 6, fps * t ))
         frame = 0
         timeList = np.linspace(0, t, int(fps * t ))
-        while frame < int(fps * t):
+        tPick = 0
+        while frame < int(fps * t)-1:
             data = solve_ivp(
-                self.dU, t_span=(timeList[frame],t), y0=passedVals,
+                self.dU, t_span=(tPick,t), y0=passedVals,
                 t_eval = timeList[frame:],
                 max_step = 0.001, events=event, dense_output=False
             )
@@ -211,16 +212,17 @@ class ParticleSimulator:
             
             # update the frame
             frame +=frameGen
-            if len(data.y_events[0]) == 0:
-                break
-            thisInst = data.y_events[0][0]
-            pos = np.array([thisInst[:N], thisInst[N:N*2], thisInst[N*2:N*3]]).T
-            vel = np.array([thisInst[N*3:N*4], thisInst[4*N:N*5], thisInst[N*5:N*6]]).T
-            pos, vel = self.checkCollisionsWithSphere(pos, vel)
-            pos = pos.T
-            vel = vel.T
-            passedVals = np.concatenate((pos[0], pos[1], pos[2], vel[0], vel[1], vel[2]))
-            print(timeList[frame])
+            if len(data.y_events[0]) != 0:
+
+                thisInst = data.y_events[0][0]
+                pos = np.array([thisInst[:N], thisInst[N:N*2], thisInst[N*2:N*3]]).T
+                vel = np.array([thisInst[N*3:N*4], thisInst[4*N:N*5], thisInst[N*5:N*6]]).T
+                pos, vel = self.checkCollisionsWithSphere(pos, vel)
+                pos = pos.T
+                vel = vel.T
+                passedVals = np.concatenate((pos[0], pos[1], pos[2], vel[0], vel[1], vel[2]))
+                tPick = data.t_events[0][0]
+            print(frame)
         #plot the sphere taken from matplotlib docs
         u = np.linspace(0, 2 * np.pi, 20)
         v = np.linspace(0, np.pi, 20)
@@ -283,8 +285,8 @@ class ParticleSimulator:
         
         ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fps, interval = (1000/fps) - 5)
         # https://stackoverflow.com/questions/37146420/saving-matplotlib-animation-as-mp4
-        #ani.save('Particles.mp4', writer = animation.FFMpegWriter(fps=fps))
-        plt.show()
+        ani.save('Particles.mp4', writer = animation.FFMpegWriter(fps=fps))
+        #plt.show()
 
 
     
@@ -320,5 +322,5 @@ class ParticleSimulator:
 s = ParticleSimulator()
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(6, 40)
+s.runIVP(3, 100)
 # %%

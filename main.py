@@ -14,7 +14,7 @@ MASS = 1 # arbitrary unit system
 # Potential constants
 V0 = 0.01
 A = 0.02 # initial guess that we can change later
-initial_velocity = 1
+initial_velocity = 1.0000000
 
 # type indicating (x, y, z) coordinates
 Coordinate = Tuple[float, float, float]
@@ -22,7 +22,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, cuberoot_N: int = 4):
+    def __init__(self, cuberoot_N: int = 5):
         '''
             Initializes the particle simulation
 
@@ -66,7 +66,7 @@ class ParticleSimulator:
     def checkCollisionsWithSphere(pos, vel):
         """Redirects particles which are outside of the unit sphere"""
         # pos = np.array([pos])
-        norms = np.linalg.norm(pos, axis=1) #NEED TO FIX FOR MANY PARTICLEs
+        norms = np.linalg.norm(pos, axis=1) 
         # indices of all particles outside the unit sphere
         outside_indices = np.where(norms > 1)
 # 
@@ -190,8 +190,6 @@ class ParticleSimulator:
                 return -1.0 # keep going!
         event.terminal = True
 
-        time_reached = 0
-        times = [0]
         dataset = np.zeros((N * 6, fps * t ))
         frame = 0
         timeList = np.linspace(0, t, int(fps * t ))
@@ -200,7 +198,7 @@ class ParticleSimulator:
             data = solve_ivp(
                 self.dU, t_span=(tPick,t), y0=passedVals,
                 t_eval = timeList[frame:],
-                max_step = 0.001, events=event, dense_output=False
+                max_step = 0.01, events=event, dense_output=False
             )
 
             
@@ -222,7 +220,7 @@ class ParticleSimulator:
                 vel = vel.T
                 passedVals = np.concatenate((pos[0], pos[1], pos[2], vel[0], vel[1], vel[2]))
                 tPick = data.t_events[0][0]
-            print(frame)
+                print('frame ',frame)
         #plot the sphere taken from matplotlib docs
         u = np.linspace(0, 2 * np.pi, 20)
         v = np.linspace(0, np.pi, 20)
@@ -283,10 +281,10 @@ class ParticleSimulator:
             #     ax_2d.set_xscale('log')
             return (scat, )
         
-        ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fps, interval = (1000/fps) - 5)
+        ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fps, interval = (1000/fps) - 1)
         # https://stackoverflow.com/questions/37146420/saving-matplotlib-animation-as-mp4
-        ani.save('Particles.mp4', writer = animation.FFMpegWriter(fps=fps))
-        #plt.show()
+        #ani.save('Particles.mp4', writer = animation.FFMpegWriter(fps=fps))
+        plt.show()
 
 
     
@@ -320,7 +318,8 @@ class ParticleSimulator:
         return np.concatenate((vel[0], vel[1], vel[2], newAccel[0], newAccel[1], newAccel[2]))
 
 s = ParticleSimulator()
+print('Simulatio Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(3, 100)
+s.runIVP(3, 40)
 # %%

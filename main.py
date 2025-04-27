@@ -12,9 +12,10 @@ from scipy.integrate import solve_ivp
 # mpl.rcParams['figure.dpi'] = 200
 MASS = 1 # arbitrary unit system
 # Potential constants
-V0 = 0.01
-A = 0.02 # initial guess that we can change later
+V0 = 0.1
+A = 0.03 # initial guess that we can change later
 initial_velocity = 1.0000000
+MIN_SEPARATION = 0.003
 
 # type indicating (x, y, z) coordinates
 Coordinate = Tuple[float, float, float]
@@ -153,7 +154,7 @@ class ParticleSimulator:
         # which is not a physical force and therefore will be set to zero later.
         zero_radius_idx = np.where(rsquare_real == 0)[0][0]
         # replace too-small separations by MIN_SEPARATION
-        rsquare_corrected = rsquare_real #np.where(rsquare_real < MIN_SEPARATION ** 2, MIN_SEPARATION ** 2, rsquare_real)
+        rsquare_corrected = np.where(rsquare_real < MIN_SEPARATION ** 2, MIN_SEPARATION ** 2, rsquare_real)
 
         F = np.array([
             -V0 * (A**3 * x * (-(4 * A)/(rsquare_corrected)**3 + 3/(rsquare_corrected)**(5/2))),
@@ -198,7 +199,9 @@ class ParticleSimulator:
             data = solve_ivp(
                 self.dU, t_span=(tPick,t), y0=passedVals,
                 t_eval = timeList[frame:],
-                max_step = 0.01, events=event, dense_output=False
+                max_step = 0.001, events=event, dense_output=False,
+                first_step = 0.000000001
+                #min_step = 0.000001
             )
 
             
@@ -321,5 +324,5 @@ s = ParticleSimulator()
 print('Simulatio Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(3, 40)
+s.runIVP(4, 40)
 # %%

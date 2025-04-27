@@ -14,7 +14,7 @@ MASS = 1 # arbitrary unit system
 # Potential constants
 V0 = 0.01
 A = 0.02 # initial guess that we can change later
-initial_velocity = 2
+initial_velocity = 1
 
 # type indicating (x, y, z) coordinates
 Coordinate = Tuple[float, float, float]
@@ -68,9 +68,11 @@ class ParticleSimulator:
         # self.accel = np.zeros((3, self.N))
   
     @staticmethod
-    def checkCollisionsWithSphere(pos, vel, accel):
+    def checkCollisionsWithSphere(pos, vel):
         """Redirects particles which are outside of the unit sphere"""
-        norms = np.linalg.norm(pos, axis=1)
+        print(pos)
+        pos = np.array([pos])
+        norms = np.linalg.norm(pos, axis=1) #NEED TO FIX FOR MANY PARTICLEs
         # indices of all particles outside the unit sphere
         outside_indices = np.where(norms > 1)
 
@@ -78,17 +80,19 @@ class ParticleSimulator:
         normal_vector = pos[outside_indices]
         #normalize it
         normal_vector = normal_vector / np.linalg.norm(normal_vector, axis=1, keepdims=True)
-
+    
         # if nothing is outside then return
         if np.size(outside_indices) == 0:
-            return pos, vel, accel
+            return pos[0], vel
         # subtract twice the projection of the velocity onto the tangent plane of the sphere
         # this reflects the change in velocity due to elastic collision with the inside of the sphere
     #https://stackoverflow.com/questions/15616742/vectorized-way-of-calculating-row-wise-dot-product-two-matrices-with-scipy
     
     #https://stackoverflow.com/questions/68245372/how-to-multiply-each-row-in-matrix-by-its-scalar-in-numpy
         #print('norm',normal_vector)
-        #teleport back into sphere if outside of sphere    
+        #teleport back into sphere if outside of sphere  
+        print("MADE IT", outside_indices, pos)  
+        sys.exit(0)
         pos[outside_indices] = normal_vector
         #change the velocity from collision
         
@@ -102,7 +106,7 @@ class ParticleSimulator:
         vel[outside_indices] -= 2 * projected_velocity
         #accel[outside_indices] -= 2 * projected_velocity / HOW_LONG_A_COLLISION_TAKES
         #print('vel',projected_velocity)
-        return pos, vel, accel
+        return pos[0], vel
         
 
     def energy(self) -> float:
@@ -184,7 +188,54 @@ class ParticleSimulator:
             self.velY,
             self.velZ
         ))
-        data = solve_ivp(self.dU, t_span=(0,t), y0=passedVals, t_eval= np.linspace(0, t, fps * t), max_step = 0.001, str = 'RK23')
+        N = self.N
+
+        # solve_ivp does not like us changing the velocity on collision
+        # so we stop solving using an event when there is a collision
+        def event(t, U):                
+            pos = np.array([U[:N], U[N:2*N], U[2*N:3*N]]).T
+            if np.any(np.linalg.norm(pos, axis=1) > 1):
+                print(np.linalg.norm(pos, axis=1))
+                return 0.0 # event! we found a collision! terminate
+            else:
+                return -1.0 # keep going!
+        event.terminal = True
+
+        time_reached = 0
+        times = []
+        xPos = []
+        yPos = []
+        zPos = []
+        xVel = []
+        yVel = []
+        zVel = []
+        while time_reached <= t:
+            print("looping")
+            data = solve_ivp(
+                self.dU, t_span=(time_reached,t), y0=passedVals,
+                t_eval = np.linspace(time_reached, t, int(fps * (t - time_reached))),
+                max_step = 0.001, events=event
+            )
+            times = np.concatenate((times, data.t))
+            newXPos, newYPos, newZPos, newXVel, newYVel, newZVel = data.y
+
+            self.posX = np.concatenate((self.posX, newXPos))
+            self.posY = np.concatenate((self.posY, newYPos))
+            self.posZ = np.concatenate((self.posZ, newZPos))
+            self.velX = np.concatenate((self.velX, newXVel))
+            self.velY = np.concatenate((self.velY, newYVel))
+            self.velZ = np.concatenate((self.velZ, newZVel))
+
+            pos = np.array([self.posX[-1], self.posY[-1], self.posZ[-1]]).T
+            vel = np.array([self.velX[-1], self.velY[-1], self.velZ[-1]]).T
+            pos, vel = self.checkCollisionsWithSphere(pos, vel)
+            
+            pos = pos.T
+            vel = vel.T
+            print(pos)
+            passedVals = np.concatenate((pos,vel))#(pos[0], pos[1], pos[2], vel[0], vel[1], vel[2]))
+            print(times)
+            time_reached = times[-1]
         
         #plot the sphere taken from matplotlib docs
         u = np.linspace(0, 2 * np.pi, 20)
@@ -264,7 +315,7 @@ class ParticleSimulator:
         N = self.N
         # unwraps the conditions into a position matrix and a velocity matrix.
         pos = np.array([U[:N], U[N:2*N], U[2*N:3*N]]).T
-        vel = np.array([U[3*N:4*N], U[4*N:5*N], U[5*N:6*N]]).T
+        vel = np.array([U[3*N:4*N], U[4*N:5*N], U[5*N:6*N]])
         
         
         # print("vel", vel)
@@ -276,15 +327,11 @@ class ParticleSimulator:
             axis=1,
             arr=pos
         )
-        pos, newVel, newAccel = self.checkCollisionsWithSphere(pos, vel, newAccel)
-
 
         # re wraps the velocity and acceloration to be passed back
         newAccel = newAccel.T
-        newVel = newVel.T
-        
 
-        return np.concatenate((newVel[0], newVel[1], newVel[2], newAccel[0], newAccel[1], newAccel[2]))
+        return np.concatenate((vel[0], vel[1], vel[2], newAccel[0], newAccel[1], newAccel[2]))
 
 s = ParticleSimulator()
 #s.run()

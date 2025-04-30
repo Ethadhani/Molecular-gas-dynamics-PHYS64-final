@@ -14,7 +14,7 @@ MASS = 1 # arbitrary unit system
 # Potential constants
 V0 = 0.1
 A = 0.03 # initial guess that we can change later
-initial_velocity = 1.0000000
+initial_velocity = 1.000000
 MIN_SEPARATION = 0.003
 
 # type indicating (x, y, z) coordinates
@@ -23,7 +23,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, cuberoot_N: int = 5):
+    def __init__(self, cuberoot_N: int = 4):
         '''
             Initializes the particle simulation
 
@@ -261,9 +261,19 @@ class ParticleSimulator:
         yp = dataset[self.N:self.N*2,:].T
         zp = dataset[self.N*2:self.N*3,:].T
 
+
+
+        xv = dataset[self.N*3:self.N*4,:].T
+        yv = dataset[self.N*4:self.N*5,:].T
+        zv = dataset[self.N*5:self.N*6,:].T
+
+        KE = (np.square(xv) + np.square(yv) + np.square(zv)) / 2
+        KEmin = np.min(KE)
+        KEmax = np.max(KE)
+
         
-        scat = ax.scatter(xp[0], yp[0], zp[0])# c=np.linalg.norm(self.vel, axis=1), cmap="cool",
-                #    )#vmax=vmax, vmin=vmin)
+        scat = ax.scatter(xp[0], yp[0], zp[0], c = KE[0], cmap='cool', 
+                          vmin=KEmin, vmax = KEmax)
         ax.set_xlim((-1,1))
         ax.set_ylim((-1,1))
         ax.set_zlim((-1,1))
@@ -271,7 +281,8 @@ class ParticleSimulator:
 
         def update(frame):
             scat._offsets3d = (xp[frame], yp[frame], zp[frame])
-            # scat.set_array(np.linalg.norm(velData[frame], axis=1))
+            scat.set_array(KE[frame])
+            scat.set_clim(vmin=KEmin, vmax=KEmax)
 
             # energy_plot.set_xdata(timeData[:frame])
             # energy_plot.set_ydata(KData[:frame])
@@ -321,8 +332,8 @@ class ParticleSimulator:
         return np.concatenate((vel[0], vel[1], vel[2], newAccel[0], newAccel[1], newAccel[2]))
 
 s = ParticleSimulator()
-print('Simulatio Initiated')
+print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(4, 40)
+s.runIVP(5, 40)
 # %%

@@ -235,7 +235,7 @@ class ParticleSimulator:
                 vel = vel.T
                 passedVals = np.concatenate((pos[0], pos[1], pos[2], vel[0], vel[1], vel[2]))
                 tPick = data.t_events[0][0]
-                print(f'frame {frame}, pressure: {np.sum(netImpulseOnSphere) / (2*np.pi * (frame/fps))}')
+                print(f'frame {frame}, pressure: {np.sum(netImpulseOnSphere) / (4*np.pi * (frame/fps))}')
         #plot the sphere taken from matplotlib docs
         u = np.linspace(0, 2 * np.pi, 20)
         v = np.linspace(0, np.pi, 20)
@@ -246,7 +246,7 @@ class ParticleSimulator:
  
         print('data has been generated! yay!')
         print(f"Total impulse: {np.sum(netImpulseOnSphere)}, average pressure: {np.sum(netImpulseOnSphere) / (4 *np.pi * t )}")
-        print(f'Predicted pressure: {(self.N**3 / AVAGADRO) * IDEALGAS * self.temp * 3 / (4*np.pi)}')
+        print(f'Predicted pressure: {(self.N / AVAGADRO) * IDEALGAS * self.temp * 3 / (4*np.pi)}')
 
         fig = plt.figure()#figsize#=plt.figaspect(2.))
         ax = fig.add_subplot(projection='3d')

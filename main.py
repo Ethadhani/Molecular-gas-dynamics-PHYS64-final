@@ -12,9 +12,9 @@ from scipy.integrate import solve_ivp
 mpl.rcParams['figure.dpi'] = 200
 MASS = 1e-20 # in kg
 # Potential constants
-V0 = 1e-23
-A = 0.03 # initial guess that we can change later
-MIN_SEPARATION = 0.003
+V0 = 1e-9
+A = 1e-5 # magic numbers from Elio's desmos
+MIN_SEPARATION = 9.99e-6
 BOLTZMANN = 1.380649e-23 # k_B Boltzmann constant, units of J/K
 
 COLLISION_TIME = 1e-9
@@ -25,7 +25,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, cuberoot_N: int = 4, temperature = 300):
+    def __init__(self, cuberoot_N: int = 4, temperature = 1000):
         '''
             Initializes the particle simulation
 
@@ -347,5 +347,5 @@ s = ParticleSimulator()
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(5, 40)
+s.runIVP(1, 40)
 # %%

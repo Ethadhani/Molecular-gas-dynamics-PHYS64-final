@@ -9,13 +9,15 @@ import matplotlib.animation as animation
 import matplotlib as mpl
 import sys
 from scipy.integrate import solve_ivp
-# mpl.rcParams['figure.dpi'] = 200
-MASS = 1 # arbitrary unit system
+mpl.rcParams['figure.dpi'] = 200
+MASS = 1e-20 # in kg
 # Potential constants
-V0 = 0.1
+V0 = 1e-23
 A = 0.03 # initial guess that we can change later
-initial_velocity = 1.000000
 MIN_SEPARATION = 0.003
+BOLTZMANN = 1.380649e-23 # k_B Boltzmann constant, units of J/K
+
+COLLISION_TIME = 1e-9
 
 # type indicating (x, y, z) coordinates
 Coordinate = Tuple[float, float, float]
@@ -23,12 +25,13 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, cuberoot_N: int = 4):
+    def __init__(self, cuberoot_N: int = 4, temperature = 300):
         '''
             Initializes the particle simulation
 
             Param:
-                N: the number of particles in the simulation
+                cuberoot_N: the cube root number of particles in the simulation
+                temperature: degrees Kelvin
         '''
         self.N = cuberoot_N**3
         rng = default_rng()
@@ -48,6 +51,8 @@ class ParticleSimulator:
         self.posY = self.posY.ravel()
         self.posZ = self.posZ.ravel()
 
+        initial_velocity = np.sqrt(3 * BOLTZMANN * temperature / MASS)
+        print(f"Initial velocity for T = {temperature} K is {initial_velocity} m/s.")
         # generate velocity with constant magnitude v_initial
         # asking numpy RNG to give a number between v_i and v_i each time should yield v_i 
         velocities = self._sphericalToCart(rng.uniform(
@@ -95,9 +100,12 @@ class ParticleSimulator:
         # print(np.sum(self.vel[outside_indices] @ np.transpose(normal_vector), axis=1)[:, None])
         projected_velocity = (vel[outside_indices] @ np.transpose(normal_vector)).diagonal()[:,None] * normal_vector
         vel[outside_indices] -= 2 * projected_velocity
-        #accel[outside_indices] -= 2 * projected_velocity / HOW_LONG_A_COLLISION_TAKES
+        magnitude_projected_velocity = np.linalg.norm(projected_velocity, axis=1)
+
+        # force = dP/dt
+        total_impulse_exerted = np.sum(2 * MASS * magnitude_projected_velocity)
         #print('vel',projected_velocity)
-        return pos, vel
+        return pos, vel, total_impulse_exerted
         
 
     def energy(self) -> float:
@@ -194,13 +202,14 @@ class ParticleSimulator:
         dataset = np.zeros((N * 6, fps * t ))
         frame = 0
         timeList = np.linspace(0, t, int(fps * t ))
+        netImpulseOnSphere = np.zeros(len(timeList))
         tPick = 0
         while frame < int(fps * t)-1:
             data = solve_ivp(
                 self.dU, t_span=(tPick,t), y0=passedVals,
                 t_eval = timeList[frame:],
                 max_step = 0.001, events=event, dense_output=False,
-                first_step = 0.000000001
+                first_step = COLLISION_TIME
                 #min_step = 0.000001
             )
 
@@ -218,7 +227,9 @@ class ParticleSimulator:
                 thisInst = data.y_events[0][0]
                 pos = np.array([thisInst[:N], thisInst[N:N*2], thisInst[N*2:N*3]]).T
                 vel = np.array([thisInst[N*3:N*4], thisInst[4*N:N*5], thisInst[N*5:N*6]]).T
-                pos, vel = self.checkCollisionsWithSphere(pos, vel)
+                pos, vel, impulse = self.checkCollisionsWithSphere(pos, vel)
+                netImpulseOnSphere[frame] += impulse
+
                 pos = pos.T
                 vel = vel.T
                 passedVals = np.concatenate((pos[0], pos[1], pos[2], vel[0], vel[1], vel[2]))
@@ -233,6 +244,7 @@ class ParticleSimulator:
         z = 1 * np.outer(np.ones(np.size(u)), np.cos(v))
  
         print('data has been generated! yay!')
+        print(f"Total impulse: {np.sum(netImpulseOnSphere)}, average pressure: {np.sum(netImpulseOnSphere) / (2*np.pi * t)}")
 
         fig = plt.figure()#figsize#=plt.figaspect(2.))
         ax = fig.add_subplot(projection='3d')

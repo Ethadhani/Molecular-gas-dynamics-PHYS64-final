@@ -16,7 +16,8 @@ V0 = 1e-9
 A = 1e-5 # magic numbers from Elio's desmos
 MIN_SEPARATION = 9.99e-6
 BOLTZMANN = 1.380649e-23 # k_B Boltzmann constant, units of J/K
-
+IDEALGAS = 8.314 # for verification, units J / (K mol)
+AVAGADRO = 6.023e23 # avagadros number of things per mole
 COLLISION_TIME = 1e-9
 
 # type indicating (x, y, z) coordinates
@@ -41,12 +42,12 @@ class ParticleSimulator:
 
         # generate particles on a grid in a cube of side length 1.4 inside the sphere
         self.posX, self.posY, self.posZ = np.meshgrid(
-            np.linspace(-0.4, 0.4, cuberoot_N),
-            np.linspace(-0.4, 0.4, cuberoot_N),
-            np.linspace(-0.4, 0.4, cuberoot_N)
+            np.linspace(-0.5, 0.5, cuberoot_N),
+            np.linspace(-0.5, 0.5, cuberoot_N),
+            np.linspace(-0.5, 0.5, cuberoot_N)
         )
 
-
+        self.temp = temperature
         self.posX = self.posX.ravel()
         self.posY = self.posY.ravel()
         self.posZ = self.posZ.ravel()
@@ -244,7 +245,8 @@ class ParticleSimulator:
         z = 1 * np.outer(np.ones(np.size(u)), np.cos(v))
  
         print('data has been generated! yay!')
-        print(f"Total impulse: {np.sum(netImpulseOnSphere)}, average pressure: {np.sum(netImpulseOnSphere) / (2*np.pi * t)}")
+        print(f"Total impulse: {np.sum(netImpulseOnSphere)}, average pressure: {np.sum(netImpulseOnSphere) / (4 *np.pi * t )}")
+        print(f'Predicted pressure: {(self.N**3 / AVAGADRO) * IDEALGAS * self.temp * 3 / (4*np.pi)}')
 
         fig = plt.figure()#figsize#=plt.figaspect(2.))
         ax = fig.add_subplot(projection='3d')
@@ -347,5 +349,5 @@ s = ParticleSimulator()
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(20, 40)
+s.runIVP(5, 40)
 # %%

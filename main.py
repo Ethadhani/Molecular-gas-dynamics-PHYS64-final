@@ -204,6 +204,8 @@ class ParticleSimulator:
         frame = 0
         timeList = np.linspace(0, t, int(fps * t ))
         netImpulseOnSphere = np.zeros(len(timeList))
+        propConst = np.zeros(len(timeList)) #PV / (nT)
+
         tPick = 0
         while frame < int(fps * t)-1:
             data = solve_ivp(
@@ -223,7 +225,7 @@ class ParticleSimulator:
             
             # update the frame
             frame +=frameGen
-            if len(data.y_events[0]) != 0:
+            if len(data.y_events[0]) != 0: #if there is a collision event
 
                 thisInst = data.y_events[0][0]
                 pos = np.array([thisInst[:N], thisInst[N:N*2], thisInst[N*2:N*3]]).T
@@ -235,7 +237,9 @@ class ParticleSimulator:
                 vel = vel.T
                 passedVals = np.concatenate((pos[0], pos[1], pos[2], vel[0], vel[1], vel[2]))
                 tPick = data.t_events[0][0]
-                print(f'frame {frame}, pressure: {np.sum(netImpulseOnSphere) / (4*np.pi * (frame/fps))}')
+                propConst[frame] = (np.sum(netImpulseOnSphere) / ( (frame/fps)* 3) ) / (self.N * self.temp / AVAGADRO)# * np.pi*4/3 / self.N / self.temp
+                print(f'frame {frame}, constant: {propConst[frame]}')
+                #np.sum(netImpulseOnSphere) / (4*np.pi * (frame/fps))
         #plot the sphere taken from matplotlib docs
         u = np.linspace(0, 2 * np.pi, 20)
         v = np.linspace(0, np.pi, 20)
@@ -245,8 +249,8 @@ class ParticleSimulator:
         z = 1 * np.outer(np.ones(np.size(u)), np.cos(v))
  
         print('data has been generated! yay!')
-        print(f"Total impulse: {np.sum(netImpulseOnSphere)}, average pressure: {np.sum(netImpulseOnSphere) / (4 *np.pi * t )}")
-        print(f'Predicted pressure: {(self.N / AVAGADRO) * IDEALGAS * self.temp * 3 / (4*np.pi)}')
+        print(f"Total impulse: {np.sum(netImpulseOnSphere)}, prop constant: {propConst[-1]}")
+        print(f'Ideal Gass constant: {IDEALGAS}')
 
         fig = plt.figure()#figsize#=plt.figaspect(2.))
         ax = fig.add_subplot(projection='3d')
@@ -349,5 +353,5 @@ s = ParticleSimulator()
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(5, 40)
+s.runIVP(3, 40)
 # %%

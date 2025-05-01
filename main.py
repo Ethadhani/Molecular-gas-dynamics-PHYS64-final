@@ -26,7 +26,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, cuberoot_N: int = 2, temperature = 1000):
+    def __init__(self, cuberoot_N: int = 4, temperature = 1000):
         '''
             Initializes the particle simulation
 
@@ -266,6 +266,7 @@ class ParticleSimulator:
         # avagadro plot
         ax_prop = fig.add_subplot(2,2,2)
         prop = ax_prop.plot(timeList[:1], propConst[:1])[0]
+        ax_prop.set_ylim((np.min(propConst)-0.5, np.max(propConst)*1.1))
         ax_prop.set_xlabel('Time (seconds)')
         ax_prop.set_ylabel(r'$\frac{PV}{nT}$')
         ax_prop.set_title('Ideal gass constants')
@@ -284,7 +285,7 @@ class ParticleSimulator:
         yv = dataset[self.N*4:self.N*5,:].T
         zv = dataset[self.N*5:self.N*6,:].T
 
-        KE = (np.square(xv) + np.square(yv) + np.square(zv)) / 2
+        KE = (np.square(xv) + np.square(yv) + np.square(zv)) * MASS/ 2
         KEmin = np.min(KE)
         KEmax = np.max(KE)
 
@@ -302,11 +303,14 @@ class ParticleSimulator:
 
         etotal = np.sum(KE, axis=1)
         emin = np.min(etotal)
+        emax = np.max(etotal)
+
         ax_En = fig.add_subplot(2,2,4)
         energy = ax_En.plot(timeList[:1], etotal[:1])[0]
         ax_En.set_xlabel('Time (seconds)')
         ax_En.set_ylabel('Energy (J)')
         ax_En.set_title('System energy')
+        ax_En.set_ylim((emin-0.5, emax*1.1 + 0.5))
 
         def update(frame):
             # particles
@@ -318,12 +322,11 @@ class ParticleSimulator:
             prop.set_xdata(timeList[:frame])
             prop.set_ydata(propConst[:frame])
             ax_prop.set_xlim((0, timeList[frame]+0.1))
-            ax_prop.set_ylim((0, propConst[frame]+1))
 
             energy.set_xdata(timeList[:frame])
             energy.set_ydata(etotal[:frame])
             ax_En.set_xlim((0, timeList[frame]+0.1))
-            ax_En.set_ylim((emin-1, etotal[frame] + 1))
+            
 
             return (scat, prop, energy)
         ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fps, interval = (1000/fps) - 1)
@@ -368,5 +371,5 @@ s = ParticleSimulator()
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(1, 40)
+s.runIVP(5, 40)
 # %%

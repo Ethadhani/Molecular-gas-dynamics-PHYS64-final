@@ -12,7 +12,7 @@ from scipy.integrate import solve_ivp
 #mpl.rcParams['figure.dpi'] = 200
 BOLTZMANN = 1.380649e-23 # k_B Boltzmann constant, units of J/K
 IDEALGAS = 8.314 # for verification, units J / (K mol)
-AVAGADRO = 6.023e23 # avagadros number of things per mole
+AVOGADRO = 6.023e23 # Avogadro's number of things per mole
 COLLISION_TIME = 1e-9
 
 # type indicating (x, y, z) coordinates
@@ -21,7 +21,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, cuberoot_N: int = 5, temperature = 1000, scenario: str = 'ideal', seed = 2):
+    def __init__(self, cuberoot_N: int = 5, temperature = 50, scenario: str = 'ideal', seed = 2):
         '''
             Initializes the particle simulation
 
@@ -38,8 +38,20 @@ class ParticleSimulator:
             self.V0 = 1e-9
             self.A = 1e-5 # magic numbers from Elio's desmos
             self.MIN_SEPARATION = 9.99e-6
+        elif scenario == 'nonideal':
+            self.MASS = 1e-20
+            self.V0 = 1e-6
+            self.A = 1e-5
+            self.MIN_SEPARATION = self.A * 0.999999999999 # 12 9s
+        elif scenario == 'nonideal2':
+            self.MASS = 1e-20
+            self.V0 = 1e-8
+            self.A = 1e-5
+            self.MIN_SEPARATION = self.A * 0.999999999999 # 12 9s
         else:
             raise f"Unknown scenario {scenario}"
+    
+        self.scenario = scenario
 
 
         # generate starting positions in spherical coordinates so that we stay withing our bounds
@@ -243,7 +255,7 @@ class ParticleSimulator:
                 vel = vel.T
                 passedVals = np.concatenate((pos[0], pos[1], pos[2], vel[0], vel[1], vel[2]))
                 tPick = data.t_events[0][0]
-                propConst[frame] = (np.sum(netImpulseOnSphere) / ( (frame/fps)* 3) ) / (self.N * self.temp / AVAGADRO)# * np.pi*4/3 / self.N / self.temp
+                propConst[frame] = (np.sum(netImpulseOnSphere) / ( (frame/fps)* 3) ) / (self.N * self.temp / AVOGADRO)# * np.pi*4/3 / self.N / self.temp
                 print(f'frame {frame}, constant: {propConst[frame]}')
                 #np.sum(netImpulseOnSphere) / (4*np.pi * (frame/fps))
         #plot the sphere taken from matplotlib docs
@@ -253,7 +265,7 @@ class ParticleSimulator:
 
         # fill in the blank spots with a loop....
         for i in blankSpots[0][1:]:
-            propConst[i] = (np.sum(netImpulseOnSphere[:i]) / (timeList[i]*3)) / (self.N * self.temp / AVAGADRO)
+            propConst[i] = (np.sum(netImpulseOnSphere[:i]) / (timeList[i]*3)) / (self.N * self.temp / AVOGADRO)
 
         u = np.linspace(0, 2 * np.pi, 20)
         v = np.linspace(0, np.pi, 20)
@@ -268,7 +280,7 @@ class ParticleSimulator:
 
         fig = plt.figure(figsize=plt.figaspect(0.5))
 
-        # avagadro plot
+        # Avogadro plot
         ax_prop = fig.add_subplot(2,2,2)
         prop = ax_prop.plot(timeList[:1], propConst[:1], label='Calculated constant')[0]
         ax_prop.set_ylim((np.min(propConst)-0.5, np.max(propConst)*1.1))
@@ -328,7 +340,7 @@ class ParticleSimulator:
             scat.set_array(KE[frame])
             scat.set_clim(vmin=KEmin, vmax=KEmax)
 
-            # avagadro
+            # Avogadro
             prop.set_xdata(timeList[:frame])
             prop.set_ydata(propConst[:frame])
             ax_prop.set_xlim((0, timeList[frame]+0.1))
@@ -344,7 +356,7 @@ class ParticleSimulator:
 
         ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fps, interval = (1000/fps) - 1)
         # https://stackoverflow.com/questions/37146420/saving-matplotlib-animation-as-mp4
-        ani.save('Particles.mp4', writer = animation.FFMpegWriter(fps=fps))
+        ani.save(f'Particles-{self.scenario}-{self.temp}.mp4', writer = animation.FFMpegWriter(fps=fps))
 
         #plt.show()
 
@@ -379,7 +391,7 @@ class ParticleSimulator:
 
         return np.concatenate((vel[0], vel[1], vel[2], newAccel[0], newAccel[1], newAccel[2]))
 
-s = ParticleSimulator()
+s = ParticleSimulator(scenario='nonideal2')
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)

@@ -10,11 +10,6 @@ import matplotlib as mpl
 import sys
 from scipy.integrate import solve_ivp
 #mpl.rcParams['figure.dpi'] = 200
-MASS = 1e-20 # in kg
-# Potential constants
-V0 = 1e-9
-A = 1e-5 # magic numbers from Elio's desmos
-MIN_SEPARATION = 9.99e-6
 BOLTZMANN = 1.380649e-23 # k_B Boltzmann constant, units of J/K
 IDEALGAS = 8.314 # for verification, units J / (K mol)
 AVAGADRO = 6.023e23 # avagadros number of things per mole
@@ -26,7 +21,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, cuberoot_N: int = 5, temperature = 2000):
+    def __init__(self, cuberoot_N: int = 5, temperature = 2000, scenario: str = 'ideal', seed = 2):
         '''
             Initializes the particle simulation
 
@@ -35,7 +30,17 @@ class ParticleSimulator:
                 temperature: degrees Kelvin
         '''
         self.N = cuberoot_N**3
-        rng = default_rng()
+        rng = default_rng(seed=seed)
+
+        if scenario == 'ideal':
+            self.MASS = 1e-20 # in kg
+            # Potential constants
+            self.V0 = 1e-9
+            self.A = 1e-5 # magic numbers from Elio's desmos
+            self.MIN_SEPARATION = 9.99e-6
+        else:
+            raise f"Unknown scenario {scenario}"
+
 
         # generate starting positions in spherical coordinates so that we stay withing our bounds
         spherCoord = rng.uniform([0, 0, 0], [1, np.pi, 2 * np.pi], size=(self.N, 3))
@@ -52,7 +57,7 @@ class ParticleSimulator:
         self.posY = self.posY.ravel()
         self.posZ = self.posZ.ravel()
 
-        initial_velocity = np.sqrt(3 * BOLTZMANN * temperature / MASS)
+        initial_velocity = np.sqrt(3 * BOLTZMANN * temperature / self.MASS)
         print(f"Initial velocity for T = {temperature} K is {initial_velocity} m/s.")
         # generate velocity with constant magnitude v_initial
         # asking numpy RNG to give a number between v_i and v_i each time should yield v_i 
@@ -69,8 +74,7 @@ class ParticleSimulator:
 
         # self.accel = np.zeros((3, self.N))
   
-    @staticmethod
-    def checkCollisionsWithSphere(pos, vel):
+    def checkCollisionsWithSphere(self, pos, vel):
         """Redirects particles which are outside of the unit sphere"""
         # pos = np.array([pos])
         norms = np.linalg.norm(pos, axis=1) 
@@ -104,14 +108,14 @@ class ParticleSimulator:
         magnitude_projected_velocity = np.linalg.norm(projected_velocity, axis=1)
 
         # force = dP/dt
-        total_impulse_exerted = np.sum(2 * MASS * magnitude_projected_velocity)
+        total_impulse_exerted = np.sum(2 * self.MASS * magnitude_projected_velocity)
         #print('vel',projected_velocity)
         return pos, vel, total_impulse_exerted
         
 
     def energy(self) -> float:
         """Kinetic energy"""
-        x = np.sum(0.5 * MASS * np.square(np.linalg.norm(self.vel, axis = 1)))
+        x = np.sum(0.5 * self.MASS * np.square(np.linalg.norm(self.vel, axis = 1)))
         # print(x)
         return x
     
@@ -127,8 +131,7 @@ class ParticleSimulator:
             r * np.cos(theta)
         ]).transpose()
     
-    @staticmethod
-    def force(a: Coordinate, b: Coordinate) -> Coordinate:
+    def force(self, a: Coordinate, b: Coordinate) -> Coordinate:
         """
             Returns the force caused by the particle at position a
             for the particle at position b, as an x-y-z tuple.
@@ -163,12 +166,14 @@ class ParticleSimulator:
         # which is not a physical force and therefore will be set to zero later.
         zero_radius_idx = np.where(rsquare_real == 0)[0][0]
         # replace too-small separations by MIN_SEPARATION
-        rsquare_corrected = np.where(rsquare_real < MIN_SEPARATION ** 2, MIN_SEPARATION ** 2, rsquare_real)
+        rsquare_corrected = np.where(
+            rsquare_real < self.MIN_SEPARATION ** 2, self.MIN_SEPARATION ** 2, rsquare_real
+        )
 
         F = np.array([
-            -V0 * (A**3 * x * (-(4 * A)/(rsquare_corrected)**3 + 3/(rsquare_corrected)**(5/2))),
-            -V0 * A**3 * y * (-(4 * A)/(rsquare_corrected)**3 + 3/(rsquare_corrected)**(5/2)),
-            -V0 * A**3 * z * (-(4 * A)/(rsquare_corrected)**3 + 3/(rsquare_corrected)**(5/2))
+            -self.V0 * (self.A**3 * x * (-(4 * self.A)/(rsquare_corrected)**3 + 3/(rsquare_corrected)**(5/2))),
+            -self.V0 * self.A**3 * y * (-(4 * self.A)/(rsquare_corrected)**3 + 3/(rsquare_corrected)**(5/2)),
+            -self.V0 * self.A**3 * z * (-(4 * self.A)/(rsquare_corrected)**3 + 3/(rsquare_corrected)**(5/2))
         ])
         F[:,zero_radius_idx] = 0 # remove force of a particle on itself
         # An array has 
@@ -258,7 +263,7 @@ class ParticleSimulator:
  
         print('data has been generated! yay!')
         print(f"Total impulse: {np.sum(netImpulseOnSphere)}, prop constant: {propConst[-1]}")
-        print(f'Ideal Gass constant: {IDEALGAS}')
+        print(f'Ideal Gas constant: {IDEALGAS}')
 
         fig = plt.figure(figsize=plt.figaspect(0.5))
 
@@ -268,8 +273,8 @@ class ParticleSimulator:
         ax_prop.set_ylim((np.min(propConst)-0.5, np.max(propConst)*1.1))
         ax_prop.set_xlabel('Time (seconds)')
         ax_prop.set_ylabel(r'$\frac{PV}{nT}$')
-        ax_prop.set_title('Ideal gass constants')
-        ax_prop.axhline(y=8.314, label='Ideal Gas constant', ls=':')
+        ax_prop.set_title('Ideal gas constants')
+        ax_prop.axhline(y=8.314, label='actual ideal gas constant', ls=':')
         ax_prop.legend()
 
 
@@ -286,7 +291,7 @@ class ParticleSimulator:
         yv = dataset[self.N*4:self.N*5,:].T
         zv = dataset[self.N*5:self.N*6,:].T
 
-        KE = (np.square(xv) + np.square(yv) + np.square(zv)) * MASS/ 2
+        KE = (np.square(xv) + np.square(yv) + np.square(zv)) * self.MASS / 2
         KEmin = np.min(KE)
         KEmax = np.max(KE)
 
@@ -296,7 +301,7 @@ class ParticleSimulator:
         ax.set_xlim((-1,1))
         ax.set_ylim((-1,1))
         ax.set_zlim((-1,1))
-        ax.set_title('Particle simulation')
+        ax.set_title(f'Particle simulation (T = {self.temp} K)')
         ax.set_aspect('equal')
 
 
@@ -331,7 +336,7 @@ class ParticleSimulator:
             energy.set_ydata(etotal[:frame])
             ax_En.set_xlim((0, timeList[frame]+0.1))
             # REMOVE IF PLOTTING LIVE
-            ax.view_init(30,60 + rotateRate * frame, 0)
+            ax.view_init(30, 60 + rotateRate * frame, 0)
             return (scat, prop, energy)
         
         fig.tight_layout(pad=.5)
@@ -363,7 +368,7 @@ class ParticleSimulator:
         # makes a matrix for each particle position, calculates all the forces 
         # on it and sums, and divides by mass to get accel
         newAccel = np.apply_along_axis(
-            lambda r: np.sum(self.force(pos, np.tile(r, (self.N,1))), axis = 1) / MASS,
+            lambda r: np.sum(self.force(pos, np.tile(r, (self.N,1))), axis = 1) / self.MASS,
             axis=1,
             arr=pos
         )
@@ -377,5 +382,5 @@ s = ParticleSimulator()
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(7, 40)
+s.runIVP(10, 40)
 # %%

@@ -9,7 +9,7 @@ import matplotlib.animation as animation
 import matplotlib as mpl
 import sys
 from scipy.integrate import solve_ivp
-mpl.rcParams['figure.dpi'] = 200
+#mpl.rcParams['figure.dpi'] = 200
 MASS = 1e-20 # in kg
 # Potential constants
 V0 = 1e-9
@@ -26,7 +26,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, cuberoot_N: int = 4, temperature = 1000):
+    def __init__(self, cuberoot_N: int = 2, temperature = 1000):
         '''
             Initializes the particle simulation
 
@@ -241,6 +241,15 @@ class ParticleSimulator:
                 print(f'frame {frame}, constant: {propConst[frame]}')
                 #np.sum(netImpulseOnSphere) / (4*np.pi * (frame/fps))
         #plot the sphere taken from matplotlib docs
+
+        # the proportionality constant wont be filled in if no collisions during that frame, thus we can fill it in.
+        blankSpots = np.where(propConst == 0.0)
+        # fill in the blank spots with a loop....
+        for i in blankSpots[0][1:]:
+            propConst[i] = (np.sum(netImpulseOnSphere[:i]) / 3) / (self.N * self.temp / AVAGADRO)
+
+
+
         u = np.linspace(0, 2 * np.pi, 20)
         v = np.linspace(0, np.pi, 20)
  
@@ -252,34 +261,24 @@ class ParticleSimulator:
         print(f"Total impulse: {np.sum(netImpulseOnSphere)}, prop constant: {propConst[-1]}")
         print(f'Ideal Gass constant: {IDEALGAS}')
 
-        fig = plt.figure()#figsize#=plt.figaspect(2.))
-        ax = fig.add_subplot(projection='3d')
-        ax.plot_surface(x, y, z, alpha=0.1)
+        fig = plt.figure(figsize=plt.figaspect(0.5))
 
-        # ax_2d = fig.add_subplot(2,1,2)
+        # avagadro plot
+        ax_prop = fig.add_subplot(2,2,2)
+        prop = ax_prop.plot(timeList[:1], propConst[:1])[0]
+        ax_prop.set_xlabel('Time (seconds)')
+        ax_prop.set_ylabel(r'$\frac{PV}{nT}$')
+        ax_prop.set_title('Ideal gass constants')
+
 
         
-        # vmin = 0
-        # vmax = 2 * energies[0] / self.N
-        # fig.colorbar(mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin, vmax), cmap='hot_r'),
-        #      ax=ax, orientation='vertical', label='Kinetic Energy')
-
-        #plot sphere
-        # ax.scatter(sphere[:,0], sphere[:,1], sphere[:,2], alpha =0.2)
-
-
-        # get the positions in plottable form
-        # data.y is NOT the y coordinate, just the solve_ivp output
-        posData = data.y
-        # print(np.shape(data.y))
-        # xp = posData[:self.N, 0]
-        # yp = posData[:self.N, 1]
-        # zp = posData[:self.N, 3]
+        # particle plot
+        ax = fig.add_subplot(1,2,1,projection='3d')
+        ax.plot_surface(x, y, z, alpha=0.1)
+       
         xp = dataset[:self.N,:].T
         yp = dataset[self.N:self.N*2,:].T
         zp = dataset[self.N*2:self.N*3,:].T
-
-
 
         xv = dataset[self.N*3:self.N*4,:].T
         yv = dataset[self.N*4:self.N*5,:].T
@@ -295,27 +294,43 @@ class ParticleSimulator:
         ax.set_xlim((-1,1))
         ax.set_ylim((-1,1))
         ax.set_zlim((-1,1))
+        ax.set_title('Particle simulation')
         ax.set_aspect('equal')
 
+
+        # energy
+
+        etotal = np.sum(KE, axis=1)
+        emin = np.min(etotal)
+        ax_En = fig.add_subplot(2,2,4)
+        energy = ax_En.plot(timeList[:1], etotal[:1])[0]
+        ax_En.set_xlabel('Time (seconds)')
+        ax_En.set_ylabel('Energy (J)')
+        ax_En.set_title('System energy')
+
         def update(frame):
+            # particles
             scat._offsets3d = (xp[frame], yp[frame], zp[frame])
             scat.set_array(KE[frame])
             scat.set_clim(vmin=KEmin, vmax=KEmax)
 
-            # energy_plot.set_xdata(timeData[:frame])
-            # energy_plot.set_ydata(KData[:frame])
-            # ax_2d.set_xlim((0, times[frame]))
-            # ax_2d.set_ylim((0, KData[frame])) # assumption: energy never decreases
-            # if frame == 3: # FIXME: this so it is not zero which makes mat plot lib yell at us
-            #     print(KData[2:frame])
-            #     ax_2d.set_yscale('log')
-                # sys.exit()
-            #     ax_2d.set_xscale('log')
-            return (scat, )
-        
+            # avagadro
+            prop.set_xdata(timeList[:frame])
+            prop.set_ydata(propConst[:frame])
+            ax_prop.set_xlim((0, timeList[frame]+0.1))
+            ax_prop.set_ylim((0, propConst[frame]+1))
+
+            energy.set_xdata(timeList[:frame])
+            energy.set_ydata(etotal[:frame])
+            ax_En.set_xlim((0, timeList[frame]+0.1))
+            ax_En.set_ylim((emin-1, etotal[frame] + 1))
+
+            return (scat, prop, energy)
         ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fps, interval = (1000/fps) - 1)
         # https://stackoverflow.com/questions/37146420/saving-matplotlib-animation-as-mp4
         #ani.save('Particles.mp4', writer = animation.FFMpegWriter(fps=fps))
+        fig.tight_layout(pad=.5)
+
         plt.show()
 
 
@@ -353,5 +368,5 @@ s = ParticleSimulator()
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(3, 40)
+s.runIVP(1, 40)
 # %%

@@ -21,7 +21,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, cuberoot_N: int = 5, temperature = 2000, scenario: str = 'ideal', seed = 2):
+    def __init__(self, cuberoot_N: int = 5, temperature = 1000, scenario: str = 'ideal', seed = 2):
         '''
             Initializes the particle simulation
 
@@ -217,7 +217,8 @@ class ParticleSimulator:
                 self.dU, t_span=(tPick,t), y0=passedVals,
                 t_eval = timeList[frame:],
                 max_step = 0.001, events=event, dense_output=False,
-                first_step = COLLISION_TIME
+                first_step = COLLISION_TIME,
+                rtol=1e-6, atol = 1e-9 # 1000x more sensitive to error
                 #min_step = 0.000001
             )
 

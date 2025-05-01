@@ -26,7 +26,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, cuberoot_N: int = 2, temperature = 1000):
+    def __init__(self, cuberoot_N: int = 5, temperature = 2000):
         '''
             Initializes the particle simulation
 
@@ -244,11 +244,10 @@ class ParticleSimulator:
 
         # the proportionality constant wont be filled in if no collisions during that frame, thus we can fill it in.
         blankSpots = np.where(propConst == 0.0)
+
         # fill in the blank spots with a loop....
         for i in blankSpots[0][1:]:
-            propConst[i] = (np.sum(netImpulseOnSphere[:i]) / 3) / (self.N * self.temp / AVAGADRO)
-
-
+            propConst[i] = (np.sum(netImpulseOnSphere[:i]) / (timeList[i]*3)) / (self.N * self.temp / AVAGADRO)
 
         u = np.linspace(0, 2 * np.pi, 20)
         v = np.linspace(0, np.pi, 20)
@@ -265,11 +264,13 @@ class ParticleSimulator:
 
         # avagadro plot
         ax_prop = fig.add_subplot(2,2,2)
-        prop = ax_prop.plot(timeList[:1], propConst[:1])[0]
+        prop = ax_prop.plot(timeList[:1], propConst[:1], label='Calculated constant')[0]
         ax_prop.set_ylim((np.min(propConst)-0.5, np.max(propConst)*1.1))
         ax_prop.set_xlabel('Time (seconds)')
         ax_prop.set_ylabel(r'$\frac{PV}{nT}$')
         ax_prop.set_title('Ideal gass constants')
+        ax_prop.axhline(y=8.314, label='Ideal Gas constant', ls=':')
+        ax_prop.legend()
 
 
         
@@ -302,15 +303,16 @@ class ParticleSimulator:
         # energy
 
         etotal = np.sum(KE, axis=1)
-        emin = np.min(etotal)
-        emax = np.max(etotal)
+        emin = np.min(etotal[1:-1])
+        emax = np.max(etotal[1:-1])
 
         ax_En = fig.add_subplot(2,2,4)
-        energy = ax_En.plot(timeList[:1], etotal[:1])[0]
+        energy = ax_En.plot(timeList[:1], etotal[:1], label='Kinetic energy')[0]
         ax_En.set_xlabel('Time (seconds)')
         ax_En.set_ylabel('Energy (J)')
-        ax_En.set_title('Kinetic energy')
-        ax_En.set_ylim((emin*1.5, emax*1.5))
+        ax_En.set_title('System energy')
+        ax_En.set_ylim((emin*0.75, emax*1.25))
+        ax_En.legend()
 
 
         rotateRate = 5 / (fps)
@@ -375,5 +377,5 @@ s = ParticleSimulator()
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(4, 40)
+s.runIVP(7, 40)
 # %%

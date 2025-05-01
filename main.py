@@ -26,7 +26,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, cuberoot_N: int = 4, temperature = 1000):
+    def __init__(self, cuberoot_N: int = 2, temperature = 1000):
         '''
             Initializes the particle simulation
 
@@ -309,9 +309,11 @@ class ParticleSimulator:
         energy = ax_En.plot(timeList[:1], etotal[:1])[0]
         ax_En.set_xlabel('Time (seconds)')
         ax_En.set_ylabel('Energy (J)')
-        ax_En.set_title('System energy')
-        ax_En.set_ylim((emin-0.5, emax*1.1 + 0.5))
+        ax_En.set_title('Kinetic energy')
+        ax_En.set_ylim((emin*1.5, emax*1.5))
 
+
+        rotateRate = 5 / (fps)
         def update(frame):
             # particles
             scat._offsets3d = (xp[frame], yp[frame], zp[frame])
@@ -326,15 +328,17 @@ class ParticleSimulator:
             energy.set_xdata(timeList[:frame])
             energy.set_ydata(etotal[:frame])
             ax_En.set_xlim((0, timeList[frame]+0.1))
-            
-
+            # REMOVE IF PLOTTING LIVE
+            ax.view_init(30,60 + rotateRate * frame, 0)
             return (scat, prop, energy)
-        ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fps, interval = (1000/fps) - 1)
-        # https://stackoverflow.com/questions/37146420/saving-matplotlib-animation-as-mp4
-        #ani.save('Particles.mp4', writer = animation.FFMpegWriter(fps=fps))
+        
         fig.tight_layout(pad=.5)
 
-        plt.show()
+        ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fps, interval = (1000/fps) - 1)
+        # https://stackoverflow.com/questions/37146420/saving-matplotlib-animation-as-mp4
+        ani.save('Particles.mp4', writer = animation.FFMpegWriter(fps=fps))
+
+        #plt.show()
 
 
     
@@ -371,5 +375,5 @@ s = ParticleSimulator()
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(5, 40)
+s.runIVP(4, 40)
 # %%

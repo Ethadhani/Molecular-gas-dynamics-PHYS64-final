@@ -21,7 +21,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, cuberoot_N: int = 5, temperature = 50, scenario: str = 'ideal', seed = 2):
+    def __init__(self, cuberoot_N: int = 3, temperature = 50, scenario: str = 'ideal', seed = 2):
         '''
             Initializes the particle simulation
 
@@ -125,7 +125,7 @@ class ParticleSimulator:
         return pos, vel, total_impulse_exerted
         
 
-    def energy(self) -> float:
+    def kineticE(self) -> float:
         """Kinetic energy"""
         x = np.sum(0.5 * self.MASS * np.square(np.linalg.norm(self.vel, axis = 1)))
         # print(x)
@@ -308,6 +308,13 @@ class ParticleSimulator:
         KEmin = np.min(KE)
         KEmax = np.max(KE)
 
+        print('calc potential')
+        pEtotal = np.zeros(len(timeList))
+        for i in range(len(timeList)):
+            pEtotal[i]= self.calcPotential(xp,yp,zp,i)
+
+        #print(potential)
+
         
         scat = ax.scatter(xp[0], yp[0], zp[0], c = KE[0], cmap='cool', 
                           vmin=KEmin, vmax = KEmax)
@@ -317,20 +324,25 @@ class ParticleSimulator:
         ax.set_title(f'Particle simulation (T = {self.temp} K)')
         ax.set_aspect('equal')
 
+        
 
-        # energy
 
-        etotal = np.sum(KE, axis=1)
-        emin = np.min(etotal[1:-1])
-        emax = np.max(etotal[1:-1])
+        # energy plots
 
-        ax_En = fig.add_subplot(2,2,4)
-        energy = ax_En.plot(timeList[:1], etotal[:1], label='Kinetic energy')[0]
-        ax_En.set_xlabel('Time (seconds)')
-        ax_En.set_ylabel('Energy (J)')
-        ax_En.set_title('System energy')
-        ax_En.set_ylim((emin*0.75, emax*1.25))
-        ax_En.legend()
+        kEtotal = np.sum(KE, axis=1)
+        emin = np.min(np.concatenate((kEtotal[1:-1], pEtotal)))
+        emax = np.max(np.concatenate((kEtotal[1:-1], pEtotal)))
+
+        ax_KE = fig.add_subplot(2,2,4)
+        #ax_PE = ax_KE.twinx()
+        kinetic = ax_KE.plot(timeList[:1], kEtotal[:1], label=r'K_E')[0]
+        ax_KE.set_xlabel('Time (seconds)')
+        ax_KE.set_ylabel('Energy (J)')
+        ax_KE.set_title('System energy')
+        ax_KE.set_ylim((emin*0.75, emax*1.25))
+        pot = ax_KE.plot(timeList[:1], pEtotal[:1], label = r'U_E')[0]
+        ax_KE.legend()
+
 
 
         rotateRate = 5 / (fps)
@@ -345,21 +357,59 @@ class ParticleSimulator:
             prop.set_ydata(propConst[:frame])
             ax_prop.set_xlim((0, timeList[frame]+0.1))
 
-            energy.set_xdata(timeList[:frame])
-            energy.set_ydata(etotal[:frame])
-            ax_En.set_xlim((0, timeList[frame]+0.1))
+            kinetic.set_xdata(timeList[:frame])
+            kinetic.set_ydata(kEtotal[:frame])
+            pot.set_xdata(timeList[:frame])
+            pot.set_ydata(pEtotal[:frame])
+            ax_KE.set_xlim((0, timeList[frame]+0.1))
             # REMOVE IF PLOTTING LIVE
-            ax.view_init(30, 60 + rotateRate * frame, 0)
-            return (scat, prop, energy)
+            #ax.view_init(30, 60 + rotateRate * frame, 0)
+            return (scat, prop, kinetic, pot)
         
         fig.tight_layout(pad=.5)
 
         ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fps, interval = (1000/fps) - 1)
         # https://stackoverflow.com/questions/37146420/saving-matplotlib-animation-as-mp4
-        ani.save(f'Particles-{self.scenario}-{self.temp}.mp4', writer = animation.FFMpegWriter(fps=fps))
+        #ani.save(f'Particles-{self.scenario}-{self.temp}.mp4', writer = animation.FFMpegWriter(fps=fps))
 
-        #plt.show()
+        plt.show()
 
+    def potential(self, a: Coordinate, b: Coordinate) -> Coordinate:
+        '''potential function: V(x, y, z) = 
+                V_0 (a^4/(x^2 + y^2 + z^2)^2 - a^3/(x^2+y^2+z^2)^(3/2))'''
+
+        # ensure we dont calculate the force of a particle on itself
+        # print(f"a:\n{a}\nb:\n{b}")
+        # if np.all(a == b):
+        #     return 0
+        # x,y,z components of r
+        # diff = a - b
+        # x = diff[0]
+        # y = diff[1]
+        # z = diff[2]
+
+        radii = a - b
+        x = radii[:,0]
+        y = radii[:,1]
+        z = radii[:,2]
+        rsquare = x**2 + y**2 + z**2
+        potential = self.V0 *  (self.A**4 / rsquare**2) - self.V0 * (self.A**3 / rsquare**(3/2))
+        np.nan_to_num(potential, False, nan=0.0)
+        return potential
+
+
+    def calcPotential(self, xp, yp, zp, frame):
+        '''potential function: V(x, y, z) = 
+                V_0 (a^4/(x^2 + y^2 + z^2)^2 - a^3/(x^2+y^2+z^2)^(3/2))'''
+        
+        pos = np.array([xp[frame], yp[frame], zp[frame]]).T
+        potentialList = np.apply_along_axis(
+            lambda r: np.sum(self.potential(pos, np.tile(r, (self.N,1))), axis = 0),
+            axis=1,
+            arr=pos
+        )
+        
+        return np.abs(np.sum(potentialList)/2)
 
     
     def dU(self, t, U):
@@ -395,5 +445,5 @@ s = ParticleSimulator(scenario='nonideal2')
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(10, 40)
+s.runIVP(3, 40)
 # %%

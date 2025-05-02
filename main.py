@@ -22,7 +22,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, cuberoot_N: int = 3, temperature = 50, scenario: str = 'ideal', seed = 2):
+    def __init__(self, cuberoot_N: int = 5, temperature = 1000, scenario: str = 'ideal', seed = 2):
         '''
             Initializes the particle simulation
 
@@ -333,10 +333,7 @@ class ParticleSimulator:
         kEtotal = np.sum(KE, axis=1)
         # emin = np.min(np.concatenate((kEtotal[1:-1], pEtotal)))
         # emax = np.max(np.concatenate((kEtotal[1:-1], pEtotal)))
-        kmin = np.min(kEtotal[1:-1])
-        kmax = np.max(kEtotal[1:-1])
-        pmin = np.min(pEtotal)
-        pmax = np.max(pEtotal)
+        
         #https://matplotlib.org/stable/gallery/spines/multiple_yaxis_with_spines.html
 
         ax_KE = fig.add_subplot(2,2,4)
@@ -352,9 +349,16 @@ class ParticleSimulator:
         ax_PE.set_ylabel('$|U_E|$ (J)')
 
     # set limits and such
+        kmin = np.min(kEtotal[1:-1])
+        kmax = np.max(kEtotal[1:-1])
+        pmin = np.min(pEtotal)
+        pmax = np.max(pEtotal)
+        diff = np.abs(np.max([kmax-kmin, pmax-pmin])) * 1.1 / 2
+        
         ax_KE.set_title('System energy')
-        ax_KE.set_ylim((kmin*0.75, kmax*1.25))
-        ax_PE.set_ylim((pmin*0.75, pmax*1.25))
+        ax_KE.set_ylim((np.mean([kmin, kmax]) - diff, np.mean([kmin, kmax]) + diff))
+        ax_PE.set_ylim((np.mean([pmin, pmax]) - diff, np.mean([pmin, pmax]) + diff))
+
 
         ax_KE.legend(handles = [kinetic, pot])
 

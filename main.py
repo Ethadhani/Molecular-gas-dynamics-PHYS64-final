@@ -9,6 +9,7 @@ import matplotlib.animation as animation
 import matplotlib as mpl
 import sys
 from scipy.integrate import solve_ivp
+import warnings
 #mpl.rcParams['figure.dpi'] = 200
 BOLTZMANN = 1.380649e-23 # k_B Boltzmann constant, units of J/K
 IDEALGAS = 8.314 # for verification, units J / (K mol)
@@ -330,18 +331,36 @@ class ParticleSimulator:
         # energy plots
 
         kEtotal = np.sum(KE, axis=1)
-        emin = np.min(np.concatenate((kEtotal[1:-1], pEtotal)))
-        emax = np.max(np.concatenate((kEtotal[1:-1], pEtotal)))
+        # emin = np.min(np.concatenate((kEtotal[1:-1], pEtotal)))
+        # emax = np.max(np.concatenate((kEtotal[1:-1], pEtotal)))
+        kmin = np.min(kEtotal[1:-1])
+        kmax = np.max(kEtotal[1:-1])
+        pmin = np.min(pEtotal)
+        pmax = np.max(pEtotal)
+        #https://matplotlib.org/stable/gallery/spines/multiple_yaxis_with_spines.html
 
         ax_KE = fig.add_subplot(2,2,4)
-        #ax_PE = ax_KE.twinx()
-        kinetic = ax_KE.plot(timeList[:1], kEtotal[:1], label=r'K_E')[0]
+        ax_PE = ax_KE.twinx()
+        #plot kinetic and potential
+        kinetic = ax_KE.plot(timeList[:1], kEtotal[:1], label=r'$K_E$', color = 'steelblue')[0]
+        pot = ax_PE.plot(timeList[:1], pEtotal[:1], label = r'$|U_E|$', color='forestgreen')[0]
+
+
+        #add labels
         ax_KE.set_xlabel('Time (seconds)')
-        ax_KE.set_ylabel('Energy (J)')
+        ax_KE.set_ylabel('$K_E$ (J)')
+        ax_PE.set_ylabel('$|U_E|$ (J)')
+
+    # set limits and such
         ax_KE.set_title('System energy')
-        ax_KE.set_ylim((emin*0.75, emax*1.25))
-        pot = ax_KE.plot(timeList[:1], pEtotal[:1], label = r'U_E')[0]
-        ax_KE.legend()
+        ax_KE.set_ylim((kmin*0.75, kmax*1.25))
+        ax_PE.set_ylim((pmin*0.75, pmax*1.25))
+
+        ax_KE.legend(handles = [kinetic, pot])
+
+    # set colors
+        ax_KE.tick_params(axis='y', colors=kinetic.get_color())
+        ax_PE.tick_params(axis='y', colors=pot.get_color())
 
 
 
@@ -393,7 +412,13 @@ class ParticleSimulator:
         y = radii[:,1]
         z = radii[:,2]
         rsquare = x**2 + y**2 + z**2
-        potential = self.V0 *  (self.A**4 / rsquare**2) - self.V0 * (self.A**3 / rsquare**(3/2))
+        with warnings.catch_warnings():
+            #suppress divide by 0 warnings
+            warnings.filterwarnings("ignore", message="divide by zero encountered in divide")
+            warnings.filterwarnings("ignore", message="invalid value encountered in subtract")
+            potential = self.V0 *  (self.A**4 / rsquare**2) - self.V0 * (self.A**3 / rsquare**(3/2))
+
+        #get rid of nan vals from calculating potential with self
         np.nan_to_num(potential, False, nan=0.0)
         return potential
 
@@ -445,5 +470,5 @@ s = ParticleSimulator(scenario='nonideal2')
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(3, 40)
+s.runIVP(2, 40)
 # %%

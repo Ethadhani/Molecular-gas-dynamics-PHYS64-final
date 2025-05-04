@@ -22,7 +22,7 @@ Coordinate = Tuple[float, float, float]
 
 class ParticleSimulator:
 
-    def __init__(self, cuberoot_N: int = 5, temperature = 1000, scenario: str = 'ideal', seed = 2):
+    def __init__(self, cuberoot_N: int = 5, temperature = 2000, scenario: str = 'ideal', seed = 2):
         '''
             Initializes the particle simulation
 
@@ -257,7 +257,7 @@ class ParticleSimulator:
                 passedVals = np.concatenate((pos[0], pos[1], pos[2], vel[0], vel[1], vel[2]))
                 tPick = data.t_events[0][0]
                 propConst[frame] = (np.sum(netImpulseOnSphere) / ( (frame/fps)* 3) ) / (self.N * self.temp / AVOGADRO)# * np.pi*4/3 / self.N / self.temp
-                print(f'frame {frame}, constant: {propConst[frame]}')
+                print(f'frame {frame}')#, constant: {propConst[frame]}')
                 #np.sum(netImpulseOnSphere) / (4*np.pi * (frame/fps))
         #plot the sphere taken from matplotlib docs
 
@@ -356,8 +356,8 @@ class ParticleSimulator:
         diff = np.abs(np.max([kmax-kmin, pmax-pmin])) * 1.1 / 2
         
         ax_KE.set_title('System energy')
-        ax_KE.set_ylim((np.mean([kmin, kmax]) - diff, np.mean([kmin, kmax]) + diff))
-        ax_PE.set_ylim((np.mean([pmin, pmax]) - diff, np.mean([pmin, pmax]) + diff))
+        ax_KE.set_ylim((np.median([kmin, kmax]) - diff, np.median([kmin, kmax]) + diff))
+        ax_PE.set_ylim((np.median([pmin, pmax]) - diff, np.median([pmin, pmax]) + diff))
 
 
         ax_KE.legend(handles = [kinetic, pot])
@@ -386,16 +386,16 @@ class ParticleSimulator:
             pot.set_ydata(pEtotal[:frame])
             ax_KE.set_xlim((0, timeList[frame]+0.1))
             # REMOVE IF PLOTTING LIVE
-            #ax.view_init(30, 60 + rotateRate * frame, 0)
+            ax.view_init(30, 60 + rotateRate * frame, 0)
             return (scat, prop, kinetic, pot)
         
         fig.tight_layout(pad=.5)
 
         ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fps, interval = (1000/fps) - 1)
         # https://stackoverflow.com/questions/37146420/saving-matplotlib-animation-as-mp4
-        #ani.save(f'Particles-{self.scenario}-{self.temp}.mp4', writer = animation.FFMpegWriter(fps=fps))
+        ani.save(f'Particles-{self.scenario}-{self.temp}.mp4', writer = animation.FFMpegWriter(fps=fps))
 
-        plt.show()
+        #plt.show()
 
     def potential(self, a: Coordinate, b: Coordinate) -> Coordinate:
         '''potential function: V(x, y, z) = 
@@ -470,9 +470,9 @@ class ParticleSimulator:
 
         return np.concatenate((vel[0], vel[1], vel[2], newAccel[0], newAccel[1], newAccel[2]))
 
-s = ParticleSimulator(scenario='nonideal2')
+s = ParticleSimulator(scenario='ideal')
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(2, 40)
+s.runIVP(10, 50)
 # %%

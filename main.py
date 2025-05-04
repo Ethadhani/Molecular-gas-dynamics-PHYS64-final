@@ -298,19 +298,19 @@ class ParticleSimulator:
         fig = plt.figure(figsize=plt.figaspect(0.5))
 
         # Avogadro plot
-        ax_prop = fig.add_subplot(2,4,2)
-        prop = ax_prop.plot(timeList[:1], propConst[:1], label='Calculated constant')[0]
+        ax_prop = fig.add_subplot(2,4,3)
+        prop = ax_prop.plot(timeList[:1], propConst[:1], label='Calc')[0]
         ax_prop.set_ylim((np.min(propConst)-0.5, np.max(propConst)*1.1))
         ax_prop.set_xlabel('Time (seconds)')
         ax_prop.set_ylabel(r'$\frac{PV}{nT}$')
         ax_prop.set_title('Ideal gas constants')
-        ax_prop.axhline(y=8.314, label='actual ideal gas constant', ls=':')
+        ax_prop.axhline(y=8.314, label='actual', ls=':')
         ax_prop.legend()
 
 
         
         # particle plot
-        ax = fig.add_subplot(1,4,1,projection='3d')
+        ax = fig.add_subplot(1,2,1,projection='3d')
         ax.plot_surface(x, y, z, alpha=0.1)
        
         xp = dataset[:self.N,:].T
@@ -341,8 +341,11 @@ class ParticleSimulator:
         ax.set_title(f'Particle simulation (T = {self.temp} K)')
         ax.set_aspect('equal')
 
-        
-        ax_pres = fig.add_subplot(2,2,2)
+        # plot pressure
+        ax_pres = fig.add_subplot(2,4,4)
+        ax_pres.set_ylim((np.min(netImpulseOnSphere)*fps,np.max(netImpulseOnSphere)*fps))
+        pressure = ax_pres.plot(timeList[:1], netImpulseOnSphere[:1] * fps)[0]
+
 
 
 
@@ -408,17 +411,22 @@ class ParticleSimulator:
             total.set_ydata((kEtotal + pEtotal)[:frame])
 
             ax_KE.set_xlim((0, timeList[frame]+0.1))
+
+            pressure.set_xdata(timeList[:frame])
+            pressure.set_ydata(netImpulseOnSphere[:frame] * fps)
+
+            ax_pres.set_xlim((0, timeList[frame]+0.1))
             # REMOVE IF PLOTTING LIVE
-            ax.view_init(30, 60 + rotateRate * frame, 0)
+            #ax.view_init(30, 60 + rotateRate * frame, 0)
             return (scat, prop, kinetic, pot)
         
         fig.tight_layout(pad=.5)
 
         ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fps, interval = (1000/fps) - 1)
         # https://stackoverflow.com/questions/37146420/saving-matplotlib-animation-as-mp4
-        ani.save(f'Particles-{self.scenario}-{self.temp}.mp4', writer = animation.FFMpegWriter(fps=fps))
+        #ani.save(f'Particles-{self.scenario}-{self.temp}.mp4', writer = animation.FFMpegWriter(fps=fps))
 
-        #plt.show()
+        plt.show()
 
     def potential(self, a: Coordinate, b: Coordinate) -> Coordinate:
         '''potential function: V(x, y, z) = 

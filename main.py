@@ -26,7 +26,7 @@ class ParticleSimulator:
     # 3852819 => 9.371 constant
     # seed 10 => 9.044 constant
     # seed 5 => 8.991 constant
-    def __init__(self, cuberoot_N: int = 5, temperature = 2000, scenario: str = 'ideal', seed = 5):
+    def __init__(self, cuberoot_N: int = 6, temperature = 2000, scenario: str = 'ideal', seed = 5):
         '''
             Initializes the particle simulation
 
@@ -43,7 +43,13 @@ class ParticleSimulator:
             self.V0 = 1e-9
             self.A = 1e-5 # magic numbers from Elio's desmos
             self.MIN_SEPARATION = 9.99e-6
-        if scenario == 'idealheavy':
+        elif scenario == 'nopotential':
+            self.MASS = 1e-20 # in kg
+            # Potential constants
+            self.V0 = 0
+            self.A = 1e-5 # magic numbers from Elio's desmos
+            self.MIN_SEPARATION = 1.33333333333333-5
+        elif scenario == 'idealheavy':
             self.MASS = 1e-10 # in kg
             # Potential constants
             self.V0 = 1e-9
@@ -517,7 +523,7 @@ def moving_average(a, n=3):
 
 
 
-s = ParticleSimulator(scenario='Testideal')
+s = ParticleSimulator(scenario='nopotential')
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)

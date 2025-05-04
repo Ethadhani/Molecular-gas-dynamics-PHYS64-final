@@ -21,8 +21,11 @@ Coordinate = Tuple[float, float, float]
 #%%
 
 class ParticleSimulator:
-
-    def __init__(self, cuberoot_N: int = 5, temperature = 2000, scenario: str = 'ideal', seed = 2):
+    # 2001K has seed 10, 2002 is 5
+    # 3852819 => 9.371 constant
+    # seed 10 => 9.044 constant
+    # seed 5 => 8.991 constant
+    def __init__(self, cuberoot_N: int = 6, temperature = 2002000000000, scenario: str = 'ideal', seed = 5):
         '''
             Initializes the particle simulation
 
@@ -35,6 +38,12 @@ class ParticleSimulator:
 
         if scenario == 'ideal':
             self.MASS = 1e-20 # in kg
+            # Potential constants
+            self.V0 = 1e-9
+            self.A = 1e-5 # magic numbers from Elio's desmos
+            self.MIN_SEPARATION = 9.99e-6
+        if scenario == 'idealheavy':
+            self.MASS = 1e-10 # in kg
             # Potential constants
             self.V0 = 1e-9
             self.A = 1e-5 # magic numbers from Elio's desmos
@@ -338,10 +347,11 @@ class ParticleSimulator:
 
         ax_KE = fig.add_subplot(2,2,4)
         ax_PE = ax_KE.twinx()
+        ax_TE = ax_KE.twinx()
         #plot kinetic and potential
         kinetic = ax_KE.plot(timeList[:1], kEtotal[:1], label=r'$K_E$', color = 'steelblue')[0]
         pot = ax_PE.plot(timeList[:1], pEtotal[:1], label = r'$|U_E|$', color='forestgreen')[0]
-
+        total = ax_TE.plot(timeList[:1], (kEtotal + pEtotal)[:1], label = 'total energy', color='red')[0]
 
         #add labels
         ax_KE.set_xlabel('Time (seconds)')
@@ -358,6 +368,7 @@ class ParticleSimulator:
         ax_KE.set_title('System energy')
         ax_KE.set_ylim((np.median([kmin, kmax]) - diff, np.median([kmin, kmax]) + diff))
         ax_PE.set_ylim((np.median([pmin, pmax]) - diff, np.median([pmin, pmax]) + diff))
+
 
 
         ax_KE.legend(handles = [kinetic, pot])
@@ -384,6 +395,9 @@ class ParticleSimulator:
             kinetic.set_ydata(kEtotal[:frame])
             pot.set_xdata(timeList[:frame])
             pot.set_ydata(pEtotal[:frame])
+            total.set_xdata(timeList[:frame])
+            total.set_ydata((kEtotal + pEtotal)[:frame])
+
             ax_KE.set_xlim((0, timeList[frame]+0.1))
             # REMOVE IF PLOTTING LIVE
             ax.view_init(30, 60 + rotateRate * frame, 0)
@@ -470,9 +484,9 @@ class ParticleSimulator:
 
         return np.concatenate((vel[0], vel[1], vel[2], newAccel[0], newAccel[1], newAccel[2]))
 
-s = ParticleSimulator(scenario='ideal')
+s = ParticleSimulator(scenario='idealheavy')
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(10, 50)
+s.runIVP(5, 50)
 # %%

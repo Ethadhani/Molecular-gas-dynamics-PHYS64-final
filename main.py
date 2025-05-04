@@ -11,7 +11,7 @@ import sys
 from scipy.integrate import solve_ivp
 import warnings
 
-#mpl.rcParams['figure.dpi'] = 200
+mpl.rcParams['figure.dpi'] = 150
 BOLTZMANN = 1.380649e-23 # k_B Boltzmann constant, units of J/K
 IDEALGAS = 8.314 # for verification, units J / (K mol)
 AVOGADRO = 6.023e23 # Avogadro's number of things per mole
@@ -54,7 +54,7 @@ class ParticleSimulator:
             # Potential constants
             self.V0 = 1e-12
             self.A = 1e-5 # magic numbers from Elio's desmos
-            self.MIN_SEPARATION = 1.3333333333e-5
+            self.MIN_SEPARATION = 1.333333333-5
             # 8.6707, remove another 3
         elif scenario == 'nonideal':
             self.MASS = 1e-20
@@ -367,7 +367,7 @@ class ParticleSimulator:
 
         ax_KE = fig.add_subplot(3,2,6)
         ax_PE = ax_KE.twinx()
-        ax_TE = ax_KE.twinx()
+        ax_TE = ax_KE#.twinx()
         #plot kinetic and potential
         kinetic = ax_KE.plot(timeList[:1], kEtotal[:1], label=r'$K_E$', color = 'steelblue')[0]
         pot = ax_PE.plot(timeList[:1], pEtotal[:1], label = r'$|U_E|$', color='forestgreen')[0]

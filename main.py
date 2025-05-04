@@ -26,7 +26,7 @@ class ParticleSimulator:
     # 3852819 => 9.371 constant
     # seed 10 => 9.044 constant
     # seed 5 => 8.991 constant
-    def __init__(self, cuberoot_N: int = 3, temperature = 2000, scenario: str = 'ideal', seed = 5):
+    def __init__(self, cuberoot_N: int = 5, temperature = 2000, scenario: str = 'ideal', seed = 5):
         '''
             Initializes the particle simulation
 
@@ -47,7 +47,7 @@ class ParticleSimulator:
             self.MASS = 2.18e-25 # xenon atom
             # Potential constants
             self.V0 = 0
-            self.A = 1e-5 # magic numbers from Elio's desmos
+            self.A = 0#1e-5 # magic numbers from Elio's desmos
             self.MIN_SEPARATION = 1.3333333333-5
         elif scenario == 'idealheavy':
             self.MASS = 1e-10 # in kg
@@ -93,7 +93,7 @@ class ParticleSimulator:
         self.posY = self.posY.ravel()
         self.posZ = self.posZ.ravel()
 
-        initial_velocity = np.sqrt(3 * BOLTZMANN * temperature / self.MASS)
+        initial_velocity = np.sqrt(8 * BOLTZMANN * temperature / (self.MASS * np.pi))
         print(f"Initial velocity for T = {temperature} K is {initial_velocity} m/s.")
         # generate velocity with constant magnitude v_initial
         # asking numpy RNG to give a number between v_i and v_i each time should yield v_i 
@@ -252,9 +252,9 @@ class ParticleSimulator:
             data = solve_ivp(
                 self.dU, t_span=(tPick,t), y0=passedVals,
                 t_eval = timeList[frame:],
-                max_step = 0.00001, events=event, dense_output=False,
+                max_step = 0.0005, events=event, dense_output=False,
                 first_step = COLLISION_TIME,
-                rtol=1e-6, atol = 1e-9 # 1000x more sensitive to error
+                #rtol=1e-6, atol = 1e-9 # 1000x more sensitive to error
                 #min_step = 0.000001
             )
 
@@ -329,8 +329,8 @@ class ParticleSimulator:
         zv = dataset[self.N*5:self.N*6,:].T
 
         KE = (np.square(xv) + np.square(yv) + np.square(zv)) * self.MASS / 2
-        KEmin = np.min(KE)
-        KEmax = np.max(KE)
+        KEmin = np.min(KE)*0.9
+        KEmax = np.max(KE)*1.1
 
         print('calc potential')
         pEtotal = np.zeros(len(timeList))
@@ -405,8 +405,7 @@ class ParticleSimulator:
         ax_KE.tick_params(axis='y', colors=kinetic.get_color())
         ax_PE.tick_params(axis='y', colors=pot.get_color())
 
-        print(kEtotal)
-        print(pEtotal)
+
 
 
 
@@ -421,6 +420,8 @@ class ParticleSimulator:
             prop.set_xdata(timeList[:frame])
             prop.set_ydata(propConst[:frame])
             ax_prop.set_xlim((0, timeList[frame]+0.1))
+            if frame%10:
+                ax_prop.set_title(f'Ideal gas constant: {propConst[frame]:.3f}')
 
             
             kinetic.set_xdata(timeList[:frame])
@@ -441,9 +442,9 @@ class ParticleSimulator:
 
         ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fps - 2, interval = (1000/fps) )
         # https://stackoverflow.com/questions/37146420/saving-matplotlib-animation-as-mp4
-        #ani.save(f'Particles-{self.scenario}-{self.temp}.mp4', writer = animation.FFMpegWriter(fps=fps))
-
-        plt.show()
+        ani.save(f'Particles-{self.scenario}-{self.temp}.mp4', writer = animation.FFMpegWriter(fps=fps))
+        #ani.save(f'Particles-{self.scenario}-{self.temp}-theMidOneMin.mp4', writer = animation.FFMpegWriter(fps=fps))
+        #plt.show()
 
     def potential(self, a: Coordinate, b: Coordinate) -> Coordinate:
         '''potential function: V(x, y, z) = 
@@ -529,9 +530,9 @@ def moving_average(a, n=3):
 
 
 
-s = ParticleSimulator(scenario='ideal')
+s = ParticleSimulator(scenario='nopotential')
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(2, 50)
+s.runIVP(5, 40)
 # %%

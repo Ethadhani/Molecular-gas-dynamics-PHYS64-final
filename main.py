@@ -48,6 +48,12 @@ class ParticleSimulator:
             self.V0 = 1e-9
             self.A = 1e-5 # magic numbers from Elio's desmos
             self.MIN_SEPARATION = 9.99e-6
+        elif scenario == 'Testideal':
+            self.MASS = 1e-20 # in kg
+            # Potential constants
+            self.V0 = 1e-12
+            self.A = 1e-5 # magic numbers from Elio's desmos
+            self.MIN_SEPARATION = 1.3333333333e-5
         elif scenario == 'nonideal':
             self.MASS = 1e-20
             self.V0 = 1e-6
@@ -266,7 +272,7 @@ class ParticleSimulator:
                 passedVals = np.concatenate((pos[0], pos[1], pos[2], vel[0], vel[1], vel[2]))
                 tPick = data.t_events[0][0]
                 propConst[frame] = (np.sum(netImpulseOnSphere) / ( (frame/fps)* 3) ) / (self.N * self.temp / AVOGADRO)# * np.pi*4/3 / self.N / self.temp
-                print(f'frame {frame}')#, constant: {propConst[frame]}')
+                print(f'frame {frame}, constant: {propConst[frame]}')
                 #np.sum(netImpulseOnSphere) / (4*np.pi * (frame/fps))
         #plot the sphere taken from matplotlib docs
 
@@ -484,7 +490,7 @@ class ParticleSimulator:
 
         return np.concatenate((vel[0], vel[1], vel[2], newAccel[0], newAccel[1], newAccel[2]))
 
-s = ParticleSimulator(scenario='idealheavy')
+s = ParticleSimulator(scenario='Testideal')
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)

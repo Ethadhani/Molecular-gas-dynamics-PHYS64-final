@@ -379,7 +379,7 @@ class ParticleSimulator:
         ax_PE = ax_KE.twinx()
         #plot kinetic and potential
         kinetic = ax_KE.plot(timeList[:1], kEtotal[:1], label=r'$K_E$', color = 'steelblue')[0]
-        pot = ax_PE.plot(timeList[:1], pEtotal[:1], label = r'$|U_E|$', color='red', ls=':')[0]
+        pot = ax_PE.plot(timeList[:1], pEtotal[:1], label = r'$|U_E|$', color='red')[0]
 
 
         #add labels

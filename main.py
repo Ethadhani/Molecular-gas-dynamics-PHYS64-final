@@ -343,8 +343,13 @@ class ParticleSimulator:
 
         # plot pressure
         ax_pres = fig.add_subplot(2,4,4)
-        ax_pres.set_ylim((np.min(netImpulseOnSphere)*fps,np.max(netImpulseOnSphere)*fps))
-        pressure = ax_pres.plot(timeList[:1], netImpulseOnSphere[:1] * fps)[0]
+        ax_pres.set_ylim((np.min(netImpulseOnSphere)*0.9*fps / (4 * np.pi),np.max(netImpulseOnSphere)*1.1*fps / (4 * np.pi)))
+        pressure = ax_pres.plot(timeList[:1], netImpulseOnSphere[:1] * fps / (4 * np.pi))[0]
+        ax_pres.axhline(y=self.N*IDEALGAS*self.temp/(2.35619449 * AVOGADRO), c='red', label='Predicted')
+        ax_pres.set_xlabel('Time (sec)')
+        ax_pres.set_ylabel('Pressure $(\frac{N}{m^2})$')
+        ax_pres.set_title('Pressure per time')
+        ax_pres.legend()
 
 
 
@@ -413,12 +418,12 @@ class ParticleSimulator:
             ax_KE.set_xlim((0, timeList[frame]+0.1))
 
             pressure.set_xdata(timeList[:frame])
-            pressure.set_ydata(netImpulseOnSphere[:frame] * fps)
+            pressure.set_ydata(netImpulseOnSphere[:frame] * fps / (4 * np.pi))
 
             ax_pres.set_xlim((0, timeList[frame]+0.1))
             # REMOVE IF PLOTTING LIVE
             #ax.view_init(30, 60 + rotateRate * frame, 0)
-            return (scat, prop, kinetic, pot)
+            return (scat, prop, kinetic, pot, pressure)
         
         fig.tight_layout(pad=.5)
 

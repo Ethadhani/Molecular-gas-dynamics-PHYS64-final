@@ -26,7 +26,7 @@ class ParticleSimulator:
     # 3852819 => 9.371 constant
     # seed 10 => 9.044 constant
     # seed 5 => 8.991 constant
-    def __init__(self, cuberoot_N: int = 6, temperature = 2000, scenario: str = 'ideal', seed = 5):
+    def __init__(self, cuberoot_N: int = 3, temperature = 2000, scenario: str = 'ideal', seed = 5):
         '''
             Initializes the particle simulation
 
@@ -48,7 +48,7 @@ class ParticleSimulator:
             # Potential constants
             self.V0 = 0
             self.A = 1e-5 # magic numbers from Elio's desmos
-            self.MIN_SEPARATION = 1.33333333333333-5
+            self.MIN_SEPARATION = 1.3333333333-5
         elif scenario == 'idealheavy':
             self.MASS = 1e-10 # in kg
             # Potential constants
@@ -60,7 +60,7 @@ class ParticleSimulator:
             # Potential constants
             self.V0 = 1e-12
             self.A = 1e-5 # magic numbers from Elio's desmos
-            self.MIN_SEPARATION = 1.333333333-5
+            self.MIN_SEPARATION = 1.333333-5
             # 8.6707, remove another 3
         elif scenario == 'nonideal':
             self.MASS = 1e-20
@@ -365,7 +365,11 @@ class ParticleSimulator:
 
         # energy plots
 
+        
         kEtotal = np.sum(KE, axis=1)
+        # kEtotal = kEtotal - np.min(kEtotal)
+        # pEtotal = pEtotal - np.min(pEtotal)
+
         # emin = np.min(np.concatenate((kEtotal[1:-1], pEtotal)))
         # emax = np.max(np.concatenate((kEtotal[1:-1], pEtotal)))
         
@@ -373,11 +377,10 @@ class ParticleSimulator:
 
         ax_KE = fig.add_subplot(3,2,6)
         ax_PE = ax_KE.twinx()
-        ax_TE = ax_KE#.twinx()
         #plot kinetic and potential
         kinetic = ax_KE.plot(timeList[:1], kEtotal[:1], label=r'$K_E$', color = 'steelblue')[0]
-        pot = ax_PE.plot(timeList[:1], pEtotal[:1], label = r'$|U_E|$', color='forestgreen')[0]
-        total = ax_TE.plot(timeList[:1], (kEtotal + pEtotal)[:1], label = 'total energy', color='red')[0]
+        pot = ax_PE.plot(timeList[:1], pEtotal[:1], label = r'$|U_E|$', color='red', ls=':')[0]
+
 
         #add labels
         ax_KE.set_xlabel('Time (seconds)')
@@ -385,10 +388,10 @@ class ParticleSimulator:
         ax_PE.set_ylabel('$|U_E|$ (J)')
 
     # set limits and such
-        kmin = np.min(kEtotal[1:-1])
-        kmax = np.max(kEtotal[1:-1])
-        pmin = np.min(pEtotal)
-        pmax = np.max(pEtotal)
+        kmin = np.min(kEtotal[5:-5])
+        kmax = np.max(kEtotal[5:-5])
+        pmin = np.min(pEtotal[5:-5])
+        pmax = np.max(pEtotal[5:-5])
         diff = np.abs(np.max([kmax-kmin, pmax-pmin])) * 1.1 / 2
         
         ax_KE.set_title('System energy')
@@ -396,12 +399,14 @@ class ParticleSimulator:
         ax_PE.set_ylim((np.median([pmin, pmax]) - diff, np.median([pmin, pmax]) + diff))
 
 
-
         ax_KE.legend(handles = [kinetic, pot])
 
     # set colors
         ax_KE.tick_params(axis='y', colors=kinetic.get_color())
         ax_PE.tick_params(axis='y', colors=pot.get_color())
+
+        print(kEtotal)
+        print(pEtotal)
 
 
 
@@ -417,13 +422,11 @@ class ParticleSimulator:
             prop.set_ydata(propConst[:frame])
             ax_prop.set_xlim((0, timeList[frame]+0.1))
 
+            
             kinetic.set_xdata(timeList[:frame])
             kinetic.set_ydata(kEtotal[:frame])
             pot.set_xdata(timeList[:frame])
             pot.set_ydata(pEtotal[:frame])
-            total.set_xdata(timeList[:frame])
-            total.set_ydata((kEtotal + pEtotal)[:frame])
-
             ax_KE.set_xlim((0, timeList[frame]+0.1))
 
             pressure.set_xdata(timeList[:frame])
@@ -431,16 +434,16 @@ class ParticleSimulator:
 
             ax_pres.set_xlim((0, timeList[frame]+0.1))
             # REMOVE IF PLOTTING LIVE
-            ax.view_init(30, 60 + rotateRate * frame, 0)
+            #ax.view_init(30, 60 + rotateRate * frame, 0)
             return (scat, prop, kinetic, pot, pressure)
         
         fig.tight_layout(pad=.5)
 
         ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fps - 2, interval = (1000/fps) )
         # https://stackoverflow.com/questions/37146420/saving-matplotlib-animation-as-mp4
-        ani.save(f'Particles-{self.scenario}-{self.temp}.mp4', writer = animation.FFMpegWriter(fps=fps))
+        #ani.save(f'Particles-{self.scenario}-{self.temp}.mp4', writer = animation.FFMpegWriter(fps=fps))
 
-#        plt.show()
+        plt.show()
 
     def potential(self, a: Coordinate, b: Coordinate) -> Coordinate:
         '''potential function: V(x, y, z) = 
@@ -461,15 +464,18 @@ class ParticleSimulator:
         y = radii[:,1]
         z = radii[:,2]
         rsquare = x**2 + y**2 + z**2
+        rsquare_New = np.where(
+            rsquare < self.MIN_SEPARATION ** 2, self.MIN_SEPARATION ** 2, rsquare
+        )
         with warnings.catch_warnings():
             #suppress divide by 0 warnings
             warnings.filterwarnings("ignore", message="divide by zero encountered in divide")
             warnings.filterwarnings("ignore", message="invalid value encountered in subtract")
-            potential = self.V0 *  (self.A**4 / rsquare**2) - self.V0 * (self.A**3 / rsquare**(3/2))
+            potential = self.V0 *  (self.A**4 / rsquare_New**2) - self.V0 * (self.A**3 / rsquare_New**(3/2))
 
         #get rid of nan vals from calculating potential with self
         np.nan_to_num(potential, False, nan=0.0)
-        return potential
+        return -potential
 
 
     def calcPotential(self, xp, yp, zp, frame):
@@ -483,7 +489,7 @@ class ParticleSimulator:
             arr=pos
         )
         
-        return np.abs(np.sum(potentialList)/2)
+        return (np.sum(potentialList)/2)
 
     
     def dU(self, t, U):
@@ -523,9 +529,9 @@ def moving_average(a, n=3):
 
 
 
-s = ParticleSimulator(scenario='nopotential')
+s = ParticleSimulator(scenario='ideal')
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(5, 50)
+s.runIVP(2, 50)
 # %%

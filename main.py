@@ -348,7 +348,7 @@ class ParticleSimulator:
         ax_pres = fig.add_subplot(3,2,4)
         ax_pres.set_ylim((np.min(presList),np.max(presList)))
         pressure = ax_pres.plot(timeList[:1], presList[:1] )[0]
-        ax_pres.axhline(y=self.N*IDEALGAS*self.temp/(2.35619449 * AVOGADRO), c='red', label='Predicted')
+        ax_pres.axhline(y=self.N*IDEALGAS*self.temp/(4.1887902048 * AVOGADRO), c='red', label='Predicted')
         ax_pres.set_xlabel('Time (sec)')
         ax_pres.set_ylabel(r'Pressure $(\frac{N}{m^2})$')
         ax_pres.set_title('Pressure per time')

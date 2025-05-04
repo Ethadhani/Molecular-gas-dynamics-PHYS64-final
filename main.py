@@ -25,7 +25,7 @@ class ParticleSimulator:
     # 3852819 => 9.371 constant
     # seed 10 => 9.044 constant
     # seed 5 => 8.991 constant
-    def __init__(self, cuberoot_N: int = 6, temperature = 2002000000000, scenario: str = 'ideal', seed = 5):
+    def __init__(self, cuberoot_N: int = 3, temperature = 2000, scenario: str = 'ideal', seed = 5):
         '''
             Initializes the particle simulation
 
@@ -53,7 +53,8 @@ class ParticleSimulator:
             # Potential constants
             self.V0 = 1e-12
             self.A = 1e-5 # magic numbers from Elio's desmos
-            self.MIN_SEPARATION = 1.3333333333e-5
+            self.MIN_SEPARATION = 1.33333333e-5
+            # 8.6707, remove another 3
         elif scenario == 'nonideal':
             self.MASS = 1e-20
             self.V0 = 1e-6
@@ -271,7 +272,7 @@ class ParticleSimulator:
                 vel = vel.T
                 passedVals = np.concatenate((pos[0], pos[1], pos[2], vel[0], vel[1], vel[2]))
                 tPick = data.t_events[0][0]
-                propConst[frame] = (np.sum(netImpulseOnSphere) / ( (frame/fps)* 3) ) / (self.N * self.temp / AVOGADRO)# * np.pi*4/3 / self.N / self.temp
+                propConst[frame] = (np.sum(netImpulseOnSphere[frame // 2:frame]) / ( (frame/(2*fps))* 3) ) / (self.N * self.temp / AVOGADRO)# * np.pi*4/3 / self.N / self.temp
                 print(f'frame {frame}, constant: {propConst[frame]}')
                 #np.sum(netImpulseOnSphere) / (4*np.pi * (frame/fps))
         #plot the sphere taken from matplotlib docs
@@ -281,7 +282,7 @@ class ParticleSimulator:
 
         # fill in the blank spots with a loop....
         for i in blankSpots[0][1:]:
-            propConst[i] = (np.sum(netImpulseOnSphere[:i]) / (timeList[i]*3)) / (self.N * self.temp / AVOGADRO)
+            propConst[i] = (np.sum(netImpulseOnSphere[i//2:i]) / (timeList[i]*3/2)) / (self.N * self.temp / AVOGADRO)
 
         u = np.linspace(0, 2 * np.pi, 20)
         v = np.linspace(0, np.pi, 20)
@@ -297,7 +298,7 @@ class ParticleSimulator:
         fig = plt.figure(figsize=plt.figaspect(0.5))
 
         # Avogadro plot
-        ax_prop = fig.add_subplot(2,2,2)
+        ax_prop = fig.add_subplot(2,4,2)
         prop = ax_prop.plot(timeList[:1], propConst[:1], label='Calculated constant')[0]
         ax_prop.set_ylim((np.min(propConst)-0.5, np.max(propConst)*1.1))
         ax_prop.set_xlabel('Time (seconds)')
@@ -309,7 +310,7 @@ class ParticleSimulator:
 
         
         # particle plot
-        ax = fig.add_subplot(1,2,1,projection='3d')
+        ax = fig.add_subplot(1,4,1,projection='3d')
         ax.plot_surface(x, y, z, alpha=0.1)
        
         xp = dataset[:self.N,:].T
@@ -341,6 +342,8 @@ class ParticleSimulator:
         ax.set_aspect('equal')
 
         
+        ax_pres = fig.add_subplot(2,2,2)
+
 
 
         # energy plots
@@ -494,5 +497,5 @@ s = ParticleSimulator(scenario='Testideal')
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(5, 50)
+s.runIVP(2, 50)
 # %%

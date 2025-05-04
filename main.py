@@ -10,6 +10,7 @@ import matplotlib as mpl
 import sys
 from scipy.integrate import solve_ivp
 import warnings
+
 #mpl.rcParams['figure.dpi'] = 200
 BOLTZMANN = 1.380649e-23 # k_B Boltzmann constant, units of J/K
 IDEALGAS = 8.314 # for verification, units J / (K mol)
@@ -25,7 +26,7 @@ class ParticleSimulator:
     # 3852819 => 9.371 constant
     # seed 10 => 9.044 constant
     # seed 5 => 8.991 constant
-    def __init__(self, cuberoot_N: int = 3, temperature = 2000, scenario: str = 'ideal', seed = 5):
+    def __init__(self, cuberoot_N: int = 5, temperature = 2000, scenario: str = 'ideal', seed = 5):
         '''
             Initializes the particle simulation
 
@@ -53,7 +54,7 @@ class ParticleSimulator:
             # Potential constants
             self.V0 = 1e-12
             self.A = 1e-5 # magic numbers from Elio's desmos
-            self.MIN_SEPARATION = 1.33333333e-5
+            self.MIN_SEPARATION = 1.3333333333e-5
             # 8.6707, remove another 3
         elif scenario == 'nonideal':
             self.MASS = 1e-20
@@ -298,7 +299,7 @@ class ParticleSimulator:
         fig = plt.figure(figsize=plt.figaspect(0.5))
 
         # Avogadro plot
-        ax_prop = fig.add_subplot(2,4,3)
+        ax_prop = fig.add_subplot(3,2,2)
         prop = ax_prop.plot(timeList[:1], propConst[:1], label='Calc')[0]
         ax_prop.set_ylim((np.min(propConst)-0.5, np.max(propConst)*1.1))
         ax_prop.set_xlabel('Time (seconds)')
@@ -342,12 +343,14 @@ class ParticleSimulator:
         ax.set_aspect('equal')
 
         # plot pressure
-        ax_pres = fig.add_subplot(2,4,4)
-        ax_pres.set_ylim((np.min(netImpulseOnSphere)*0.9*fps / (4 * np.pi),np.max(netImpulseOnSphere)*1.1*fps / (4 * np.pi)))
-        pressure = ax_pres.plot(timeList[:1], netImpulseOnSphere[:1] * fps / (4 * np.pi))[0]
+        presList = moving_average(netImpulseOnSphere, 3) * fps / (4 * np.pi)
+
+        ax_pres = fig.add_subplot(3,2,4)
+        ax_pres.set_ylim((np.min(presList),np.max(presList)))
+        pressure = ax_pres.plot(timeList[:1], presList[:1] )[0]
         ax_pres.axhline(y=self.N*IDEALGAS*self.temp/(2.35619449 * AVOGADRO), c='red', label='Predicted')
         ax_pres.set_xlabel('Time (sec)')
-        ax_pres.set_ylabel('Pressure $(\frac{N}{m^2})$')
+        ax_pres.set_ylabel(r'Pressure $(\frac{N}{m^2})$')
         ax_pres.set_title('Pressure per time')
         ax_pres.legend()
 
@@ -362,7 +365,7 @@ class ParticleSimulator:
         
         #https://matplotlib.org/stable/gallery/spines/multiple_yaxis_with_spines.html
 
-        ax_KE = fig.add_subplot(2,2,4)
+        ax_KE = fig.add_subplot(3,2,6)
         ax_PE = ax_KE.twinx()
         ax_TE = ax_KE.twinx()
         #plot kinetic and potential
@@ -418,20 +421,20 @@ class ParticleSimulator:
             ax_KE.set_xlim((0, timeList[frame]+0.1))
 
             pressure.set_xdata(timeList[:frame])
-            pressure.set_ydata(netImpulseOnSphere[:frame] * fps / (4 * np.pi))
+            pressure.set_ydata(presList[:frame] )
 
             ax_pres.set_xlim((0, timeList[frame]+0.1))
             # REMOVE IF PLOTTING LIVE
-            #ax.view_init(30, 60 + rotateRate * frame, 0)
+            ax.view_init(30, 60 + rotateRate * frame, 0)
             return (scat, prop, kinetic, pot, pressure)
         
         fig.tight_layout(pad=.5)
 
-        ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fps, interval = (1000/fps) - 1)
+        ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fps - 2, interval = (1000/fps) )
         # https://stackoverflow.com/questions/37146420/saving-matplotlib-animation-as-mp4
-        #ani.save(f'Particles-{self.scenario}-{self.temp}.mp4', writer = animation.FFMpegWriter(fps=fps))
+        ani.save(f'Particles-{self.scenario}-{self.temp}.mp4', writer = animation.FFMpegWriter(fps=fps))
 
-        plt.show()
+#        plt.show()
 
     def potential(self, a: Coordinate, b: Coordinate) -> Coordinate:
         '''potential function: V(x, y, z) = 
@@ -506,9 +509,17 @@ class ParticleSimulator:
 
         return np.concatenate((vel[0], vel[1], vel[2], newAccel[0], newAccel[1], newAccel[2]))
 
+# this function is copied from https://stackoverflow.com/questions/14313510/how-to-calculate-rolling-moving-average-using-python-numpy-scipy
+def moving_average(a, n=3):
+    ret = np.cumsum(a)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:] / n
+
+
+
 s = ParticleSimulator(scenario='Testideal')
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(2, 50)
+s.runIVP(5, 50)
 # %%

@@ -26,7 +26,7 @@ class ParticleSimulator:
     # 3852819 => 9.371 constant
     # seed 10 => 9.044 constant
     # seed 5 => 8.991 constant
-    def __init__(self, cuberoot_N: int = 3, temperature = 2000, scenario: str = 'ideal', seed = 5):
+    def __init__(self, cuberoot_N: int = 5, temperature = 2000, scenario: str = 'ideal', seed = 5):
         '''
             Initializes the particle simulation
 
@@ -254,7 +254,7 @@ class ParticleSimulator:
                 t_eval = timeList[frame:],
                 max_step = 0.001, events=event, dense_output=False,
                 first_step = COLLISION_TIME,
-                rtol=1e-6, atol = 1e-9 # 1000x more sensitive to error
+                # rtol=1e-6, atol = 1e-9 # 1000x more sensitive to error
                 #min_step = 0.000001
             )
 
@@ -279,7 +279,7 @@ class ParticleSimulator:
                 vel = vel.T
                 passedVals = np.concatenate((pos[0], pos[1], pos[2], vel[0], vel[1], vel[2]))
                 tPick = data.t_events[0][0]
-                propConst[frame] = (np.sum(netImpulseOnSphere[frame // 2:frame]) / ( (frame/(2*fps))* 3) ) / (self.N * self.temp / AVOGADRO)# * np.pi*4/3 / self.N / self.temp
+                propConst[frame] = (np.sum(netImpulseOnSphere[:frame]) / ( (frame/(fps))* 3) ) / (self.N * self.temp / AVOGADRO)# * np.pi*4/3 / self.N / self.temp
                 print(f'frame {frame}, constant: {propConst[frame]}')
                 #np.sum(netImpulseOnSphere) / (4*np.pi * (frame/fps))
         #plot the sphere taken from matplotlib docs
@@ -289,7 +289,7 @@ class ParticleSimulator:
 
         # fill in the blank spots with a loop....
         for i in blankSpots[0][1:]:
-            propConst[i] = (np.sum(netImpulseOnSphere[i//2:i]) / (timeList[i]*3/2)) / (self.N * self.temp / AVOGADRO)
+            propConst[i] = (np.sum(netImpulseOnSphere[:i]) / (timeList[i]*3)) / (self.N * self.temp / AVOGADRO)
 
         u = np.linspace(0, 2 * np.pi, 20)
         v = np.linspace(0, np.pi, 20)
@@ -376,16 +376,16 @@ class ParticleSimulator:
         #https://matplotlib.org/stable/gallery/spines/multiple_yaxis_with_spines.html
 
         ax_KE = fig.add_subplot(3,2,6)
-        ax_PE = ax_KE.twinx()
+        # ax_PE = ax_KE.twinx()
         #plot kinetic and potential
         kinetic = ax_KE.plot(timeList[:1], kEtotal[:1], label=r'$K_E$', color = 'steelblue')[0]
-        pot = ax_PE.plot(timeList[:1], pEtotal[:1], label = r'$|U_E|$', color='red')[0]
+        pot = ax_KE.plot(timeList[:1], pEtotal[:1], label = r'$|U_E|$', color='red')[0]
 
 
         #add labels
         ax_KE.set_xlabel('Time (seconds)')
         ax_KE.set_ylabel('$K_E$ (J)')
-        ax_PE.set_ylabel('$|U_E|$ (J)')
+        # ax_PE.set_ylabel('$|U_E|$ (J)')
 
     # set limits and such
         kmin = np.min(kEtotal[5:-5])
@@ -395,15 +395,15 @@ class ParticleSimulator:
         diff = np.abs(np.max([kmax-kmin, pmax-pmin])) * 1.1 / 2
         
         ax_KE.set_title('System energy')
-        ax_KE.set_ylim((np.median([kmin, kmax]) - diff, np.median([kmin, kmax]) + diff))
-        ax_PE.set_ylim((np.median([pmin, pmax]) - diff, np.median([pmin, pmax]) + diff))
+        # ax_KE.set_ylim((0, max(kEtotal)))
+        # ax_PE.set_ylim((np.median([pmin, pmax]) - diff, np.median([pmin, pmax]) + diff))
 
 
         ax_KE.legend(handles = [kinetic, pot])
 
     # set colors
         ax_KE.tick_params(axis='y', colors=kinetic.get_color())
-        ax_PE.tick_params(axis='y', colors=pot.get_color())
+        # ax_PE.tick_params(axis='y', colors=pot.get_color())
 
         print(kEtotal)
         print(pEtotal)
@@ -529,9 +529,9 @@ def moving_average(a, n=3):
 
 
 
-s = ParticleSimulator(scenario='ideal')
+s = ParticleSimulator(scenario='nopotential')
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(2, 50)
+s.runIVP(10, 50)
 # %%

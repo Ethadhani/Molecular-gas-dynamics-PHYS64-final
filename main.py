@@ -44,7 +44,7 @@ class ParticleSimulator:
             self.A = 1e-5 # magic numbers from Elio's desmos
             self.MIN_SEPARATION = 9.99e-6
         elif scenario == 'nopotential':
-            self.MASS = 1e-20 # in kg
+            self.MASS = 2.18e-25 # xenon atom
             # Potential constants
             self.V0 = 0
             self.A = 1e-5 # magic numbers from Elio's desmos
@@ -252,7 +252,7 @@ class ParticleSimulator:
             data = solve_ivp(
                 self.dU, t_span=(tPick,t), y0=passedVals,
                 t_eval = timeList[frame:],
-                max_step = 0.001, events=event, dense_output=False,
+                max_step = 0.00001, events=event, dense_output=False,
                 first_step = COLLISION_TIME,
                 rtol=1e-6, atol = 1e-9 # 1000x more sensitive to error
                 #min_step = 0.000001
@@ -289,7 +289,7 @@ class ParticleSimulator:
 
         # fill in the blank spots with a loop....
         for i in blankSpots[0][1:]:
-            propConst[i] = (np.sum(netImpulseOnSphere[i//2:i]) / (timeList[i]*3/2)) / (self.N * self.temp / AVOGADRO)
+            propConst[i] = (np.sum(netImpulseOnSphere[i:i]) / (timeList[i]*3)) / (self.N * self.temp / AVOGADRO)
 
         u = np.linspace(0, 2 * np.pi, 20)
         v = np.linspace(0, np.pi, 20)

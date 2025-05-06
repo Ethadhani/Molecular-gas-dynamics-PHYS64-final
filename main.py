@@ -469,6 +469,7 @@ class ParticleSimulator:
         y = radii[:,1]
         z = radii[:,2]
         rsquare = x**2 + y**2 + z**2
+        rsquare = np.where(rsquare == 0.0, np.inf, rsquare) # makes the distance infinity if looking at itself
         rsquare_New = np.where(
             rsquare < self.MIN_SEPARATION ** 2, self.MIN_SEPARATION ** 2, rsquare
         )
@@ -538,5 +539,5 @@ s = ParticleSimulator(scenario='ideal', cuberoot_N=3, temperature = 1500)
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(10, 50)
+s.runIVP(5, 50)
 # %%

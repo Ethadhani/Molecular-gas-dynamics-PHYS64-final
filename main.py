@@ -12,10 +12,18 @@ from scipy.integrate import solve_ivp
 import warnings
 
 mpl.rcParams['figure.dpi'] = 150
-BOLTZMANN = 1.380649e-23 # k_B Boltzmann constant, units of J/K
-IDEALGAS = 8.314 # for verification, units J / (K mol)
+BOLTZMANN = 0.01381 # k_B Boltzmann constant, units of zeptoJoule/K
+IDEALGAS = 8.314e21 # for verification, units zeptoJoule / (K mol)
 AVOGADRO = 6.023e23 # Avogadro's number of things per mole
-COLLISION_TIME = 1e-9
+COLLISION_TIME = 1e-9 
+
+# assume radius is 1 micron
+VOLUME = (4/3) * np.pi # units of (micron)^3
+SURFACE_AREA = 4 * np.pi # units of (micron)^2
+
+DISTANCE_TO_TIME_UNIT_RATIO = 1e3
+TIME_TO_DISTANCE_UNIT_RATIO = 1/DISTANCE_TO_TIME_UNIT_RATIO
+
 
 # type indicating (x, y, z) coordinates
 Coordinate = Tuple[float, float, float]
@@ -26,9 +34,9 @@ class ParticleSimulator:
     # 3852819 => 9.371 constant
     # seed 10 => 9.044 constant
     # seed 5 => 8.991 constant
-    def __init__(self, cuberoot_N: int = 5, temperature = 1000, scenario: str = 'ideal', seed = 5):
+    def __init__(self, cuberoot_N: int = 2, temperature = 273.75 + 75, scenario: str = 'ideal', seed = 5):
         '''
-            Initializes the particle simulation
+            Initializes the particle simulation in a 1-nm radius sphere
 
             Param:
                 cuberoot_N: the cube root number of particles in the simulation
@@ -38,11 +46,12 @@ class ParticleSimulator:
         rng = default_rng(seed=seed)
 
         if scenario == 'ideal':
-            self.MASS = 1e-20 # in kg
+            self.MASS = 2*2.3259e-5
             # Potential constants
-            self.V0 = 1e-9
-            self.A = 1e-5 # magic numbers from Elio's desmos
-            self.MIN_SEPARATION = 9.99e-6
+            self.V0 = 1e-4
+            self.A = 1e-7 # magic numbers from Elio's desmos
+            self.MIN_SEPARATION = 1e-7 # 1 ångström because that is about how big an atom is (used to be 9.99e-6)
+
         elif scenario == 'nopotential':
             self.MASS = 2.18e-25 # xenon atom
             # Potential constants
@@ -93,8 +102,8 @@ class ParticleSimulator:
         self.posY = self.posY.ravel()
         self.posZ = self.posZ.ravel()
 
-        initial_velocity = np.sqrt(2.56 * BOLTZMANN * temperature / (self.MASS ))
-        print(f"Initial velocity for T = {temperature} K is {initial_velocity} m/s.")
+        initial_velocity = np.sqrt(3 * BOLTZMANN * temperature / (self.MASS )) * TIME_TO_DISTANCE_UNIT_RATIO
+        print(f"Initial velocity for T = {temperature} K is {initial_velocity} nm/micros.")
         # generate velocity with constant magnitude v_initial
         # asking numpy RNG to give a number between v_i and v_i each time should yield v_i 
         velocities = self._sphericalToCart(rng.uniform(
@@ -144,7 +153,7 @@ class ParticleSimulator:
         magnitude_projected_velocity = np.linalg.norm(projected_velocity, axis=1)
 
         # force = dP/dt
-        total_impulse_exerted = np.sum(2 * self.MASS * magnitude_projected_velocity)
+        total_impulse_exerted = np.sum(2 * self.MASS * magnitude_projected_velocity) # UNITS: zepto-kg * nm / micros (zepto-Newton * s * 10^3)
         #print('vel',projected_velocity)
         return pos, vel, total_impulse_exerted
         
@@ -218,7 +227,7 @@ class ParticleSimulator:
         #     print(n)
         return F
     
-    def runIVP(self, t, fps):
+    def runIVP(self, t, fpmicros):
 
         # print(passedVals)
         passedVals = np.concatenate((
@@ -241,14 +250,14 @@ class ParticleSimulator:
                 return -1.0 # keep going!
         event.terminal = True
 
-        dataset = np.zeros((N * 6, fps * t ))
+        dataset = np.zeros((N * 6, fpmicros * t ))
         frame = 0
-        timeList = np.linspace(0, t, int(fps * t ))
+        timeList = np.linspace(0, t, int(fpmicros * t ))
         netImpulseOnSphere = np.zeros(len(timeList))
         propConst = np.zeros(len(timeList)) #PV / (nT)
 
         tPick = 0
-        while frame < int(fps * t)-1:
+        while frame < int(fpmicros * t)-1:
             data = solve_ivp(
                 self.dU, t_span=(tPick,t), y0=passedVals,
                 t_eval = timeList[frame:],
@@ -279,9 +288,15 @@ class ParticleSimulator:
                 vel = vel.T
                 passedVals = np.concatenate((pos[0], pos[1], pos[2], vel[0], vel[1], vel[2]))
                 tPick = data.t_events[0][0]
-                propConst[frame] = (np.sum(netImpulseOnSphere[frame // 2:frame]) / ( (frame/(fps*2))* 3) ) / (self.N * self.temp / AVOGADRO)# * np.pi*4/3 / self.N / self.temp
-                print(f'frame {frame}, constant: {propConst[frame]}')
-                #np.sum(netImpulseOnSphere) / (4*np.pi * (frame/fps))
+                # impulse has units of zepto-Newton s * 10^3 
+                time_in_micros = (frame/fpmicros)
+                propConst[frame] = (
+                    ((np.sum(netImpulseOnSphere[frame // 2:frame]) / (time_in_micros/2) )/SURFACE_AREA) # Pressure
+                    * VOLUME / (self.N * self.temp / AVOGADRO)
+                ) * DISTANCE_TO_TIME_UNIT_RATIO**2 #  10^(-27) * ideal gas constant
+                 # TODO: make this pressure
+                print(f'frame {frame}, constant/actual constant: {propConst[frame]/IDEALGAS}')
+                #np.sum(netImpulseOnSphere) / (4*np.pi * (frame/fpmicros))
         #plot the sphere taken from matplotlib docs
 
         # the proportionality constant wont be filled in if no collisions during that frame, thus we can fill it in.
@@ -289,7 +304,10 @@ class ParticleSimulator:
 
         # fill in the blank spots with a loop....
         for i in blankSpots[0][1:]:
-            propConst[i] = (np.sum(netImpulseOnSphere[i:i]) / (timeList[i]*3)) / (self.N * self.temp / AVOGADRO)
+            propConst[i] = (
+                ((np.sum(netImpulseOnSphere[i // 2:i]) / (timeList[i] /2) )/SURFACE_AREA) # Pressure
+                * VOLUME / (self.N * self.temp / AVOGADRO)
+            ) * DISTANCE_TO_TIME_UNIT_RATIO**2
 
         u = np.linspace(0, 2 * np.pi, 20)
         v = np.linspace(0, np.pi, 20)
@@ -299,7 +317,7 @@ class ParticleSimulator:
         z = 1 * np.outer(np.ones(np.size(u)), np.cos(v))
  
         print('data has been generated! yay!')
-        print(f"Total impulse: {np.sum(netImpulseOnSphere)}, prop constant: {propConst[-1]}")
+        print(f"Total impulse: {np.sum(netImpulseOnSphere)}, prop constant: {propConst[-3]}")
         print(f'Ideal Gas constant: {IDEALGAS}')
 
         fig = plt.figure(figsize=plt.figaspect(0.5))
@@ -311,7 +329,7 @@ class ParticleSimulator:
         ax_prop.set_xlabel('Time (seconds)')
         ax_prop.set_ylabel(r'$\frac{PV}{nT}$')
         ax_prop.set_title('Ideal gas constants')
-        ax_prop.axhline(y=8.314, label='actual', ls=':')
+        ax_prop.axhline(y=8.314e27, label='actual', ls=':')
         ax_prop.legend()
 
 
@@ -349,7 +367,7 @@ class ParticleSimulator:
         ax.set_aspect('equal')
 
         # plot pressure
-        presList = moving_average(netImpulseOnSphere, 3) * fps / (4 * np.pi)
+        presList = moving_average(netImpulseOnSphere, 3) * fpmicros / (4 * np.pi)
 
         ax_pres = fig.add_subplot(3,2,4)
         ax_pres.set_ylim((np.min(presList),np.max(presList)))
@@ -409,7 +427,7 @@ class ParticleSimulator:
 
 
 
-        rotateRate = 5 / (fps)
+        rotateRate = 5 / (fpmicros)
         def update(frame):
             # particles
             scat._offsets3d = (xp[frame], yp[frame], zp[frame])
@@ -440,10 +458,10 @@ class ParticleSimulator:
         
         fig.tight_layout(pad=.5)
 
-        ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fps - 2, interval = (1000/fps) )
+        ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fpmicros - 2, interval = (1000/fpmicros) )
         # https://stackoverflow.com/questions/37146420/saving-matplotlib-animation-as-mp4
-        ani.save(f'Particles-{self.scenario}-{self.temp}.mp4', writer = animation.FFMpegWriter(fps=fps))
-        #ani.save(f'Particles-{self.scenario}-{self.temp}-theMidOneMin.mp4', writer = animation.FFMpegWriter(fps=fps))
+        ani.save(f'Particles-{self.scenario}-{self.temp}.mp4', writer = animation.FFMpegWriter(fps=fpmicros))
+        #ani.save(f'Particles-{self.scenario}-{self.temp}-theMidOneMin.mp4', writer = animation.FFMpegWriter(fpmicros=fpmicros))
         #plt.show()
 
     def potential(self, a: Coordinate, b: Coordinate) -> Coordinate:
@@ -530,7 +548,7 @@ def moving_average(a, n=3):
 
 
 
-s = ParticleSimulator(scenario='nopotential')
+s = ParticleSimulator(scenario='ideal')
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)

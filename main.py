@@ -357,7 +357,10 @@ class ParticleSimulator:
         pred_pressure = TIME_OVER_DISTANCE_CONVERSION*self.N*IDEALGAS*self.temp/(VOLUME* AVOGADRO)
         print(pred_pressure)
         ax_pres.axhline(y=pred_pressure, c='red', label='Predicted')
-        ax_pres.set_ylim((min(np.min(presList), pred_pressure),max(np.max(presList), pred_pressure)))
+        ax_pres.set_ylim((
+            min(np.min(presList), pred_pressure * 0.9),
+            max(np.max(presList), pred_pressure * 1.1)
+        ))
 
         ax_pres.set_xlabel('Time (sec)')
         ax_pres.set_ylabel(r'Pressure (micro Pascal)')
@@ -536,9 +539,9 @@ def moving_average(a, n=3):
 
 
 
-s = ParticleSimulator(scenario='ideal', cuberoot_N=6, temperature = 1500)
+s = ParticleSimulator(scenario='attractive', cuberoot_N=5, temperature = 1500)
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(10, 50)
+s.runIVP(1, 50)
 # %%

@@ -34,7 +34,7 @@ class ParticleSimulator:
     # 3852819 => 9.371 constant
     # seed 10 => 9.044 constant
     # seed 5 => 8.991 constant
-    def __init__(self, cuberoot_N: int = 4, temperature = 4000, scenario: str = 'ideal', seed = 5):
+    def __init__(self, cuberoot_N: int = 4, temperature = 1000, scenario: str = 'ideal', seed = 5):
         '''
             Initializes the particle simulation in a 1-nm radius sphere
 
@@ -63,19 +63,27 @@ class ParticleSimulator:
             self.V0 = 1e-3
             self.A = 1e-4 # magic numbers from Elio's desmos
             self.MIN_SEPARATION = 1e-4 # 1 ångström because that is about how big an atom is (used to be 9.99e-6)
-        elif scenario == 'notideal':
-            self.MASS = 2*2.3259e-5 # zepto kg
-            # Potential constants
-            self.V0 = 1e4
-            self.A = 1e-4 # magic numbers from Elio's desmos
-            self.MIN_SEPARATION = 1e-4 # 1 ångström because that is about how big an atom is (used to be 9.99e-6)
         elif scenario == 'notnotideal':
+            #very very repulsive, we dont really like this one
             self.MASS = 2*2.3259e-5 # zepto kg
             # Potential constants
             self.V0 = 1e4
             self.A = 1e-3 # magic numbers from Elio's desmos
             self.MIN_SEPARATION = 1e-3 # 10 ångström because that is about how big an atom is (used to be 9.99e-6)
-        
+        elif scenario == 'notishideal':
+            # very attractive, we like this one
+            self.MASS = 2*2.3259e-5 # zepto kg
+            # Potential constants
+            self.V0 = 1e5
+            self.A = 1e-4 # magic numbers from Elio's desmos
+            self.MIN_SEPARATION = 10**(-3.88)
+        elif scenario == 'attractideal':
+            # very attractive
+            self.MASS = 2*2.3259e-5 # zepto kg
+            # Potential constants
+            self.V0 = 1e5
+            self.A = 1e-5 # magic numbers from Elio's desmos
+            self.MIN_SEPARATION = 1e-5
         else:
             raise f"Unknown scenario {scenario}"
     
@@ -435,7 +443,7 @@ class ParticleSimulator:
             ax_prop.set_xlim((0, timeList[frame]+0.1))
             if frame%10:
                 ax_prop.set_title(f'Ideal gas constant: {(propConst[frame]*1e-21):.3f}'+r' $10^{21}$')
-                ax_pres.set_title(f'Pressure per time: {np.mean(presList[:frame]):.3f}')
+                ax_pres.set_title(f'Pressure: {np.mean(presList[:frame]):.3f}')
             
             kinetic.set_xdata(timeList[:frame])
             kinetic.set_ydata(kEtotal[:frame])
@@ -543,7 +551,7 @@ def moving_average(a, n=3):
 
 
 
-s = ParticleSimulator(scenario='notnotideal')
+s = ParticleSimulator(scenario='ideal')
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)

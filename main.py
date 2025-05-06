@@ -34,7 +34,7 @@ class ParticleSimulator:
     # 3852819 => 9.371 constant
     # seed 10 => 9.044 constant
     # seed 5 => 8.991 constant
-    def __init__(self, cuberoot_N: int = 4, temperature = 1000, scenario: str = 'ideal', seed = 5):
+    def __init__(self, cuberoot_N: int = 5, temperature = 1000, scenario: str = 'ideal', seed = 5):
         '''
             Initializes the particle simulation in a 1-nm radius sphere
 
@@ -57,7 +57,7 @@ class ParticleSimulator:
             # Potential constants
             self.V0 = 1e4
             self.A = 1e-3 # magic numbers from Elio's desmos
-            self.MIN_SEPARATION = 1e-3 # 10 ångström because that is about how big an atom is (used to be 9.99e-6)
+            self.MIN_SEPARATION = 1e-3 
         elif scenario == 'attractive':
             # very attractive, we like this one
             self.MASS = 2*2.3259e-5 # zepto kg
@@ -353,9 +353,11 @@ class ParticleSimulator:
         presList = moving_average(netImpulseOnSphere, ROLLING) * fpns * DISTANCE_OVER_TIME_CONVERSION/ SURFACE_AREA
         
         ax_pres = fig.add_subplot(3,2,4)
-        ax_pres.set_ylim((np.min(presList),np.max(presList)))
         pressure = ax_pres.plot(timeList[:1], presList[:1] )[0]
-        ax_pres.axhline(y=TIME_OVER_DISTANCE_CONVERSION*self.N*IDEALGAS*self.temp/(VOLUME* AVOGADRO), c='red', label='Predicted')
+        pred_pressure = TIME_OVER_DISTANCE_CONVERSION*self.N*IDEALGAS*self.temp/(VOLUME* AVOGADRO)
+        ax_pres.axhline(y=pred_pressure, c='red', label='Predicted')
+        ax_pres.set_ylim((np.min(presList + [pred_pressure]),np.max(presList + [pred_pressure])))
+
         ax_pres.set_xlabel('Time (sec)')
         ax_pres.set_ylabel(r'Pressure (micro Pascal)')
         ax_pres.set_title(f'Pressure: {np.mean(presList[:1]):.3f}')
@@ -532,7 +534,7 @@ def moving_average(a, n=3):
 
 
 
-s = ParticleSimulator(scenario='ideal')
+s = ParticleSimulator(scenario='attractivenomin')
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)

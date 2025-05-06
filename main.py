@@ -57,14 +57,14 @@ class ParticleSimulator:
             # Potential constants
             self.V0 = 1e4
             self.A = 1e-3 # magic numbers from Elio's desmos
-            self.MIN_SEPARATION = 1e-3 
+            self.MIN_SEPARATION = 1e-20 
         elif scenario == 'attractive':
             # very attractive, we like this one
             self.MASS = 2*2.3259e-5 # zepto kg
             # Potential constants
             self.V0 = 1e5
             self.A = 1e-4 # magic numbers from Elio's desmos
-            self.MIN_SEPARATION = 10**(-3.88)
+            self.MIN_SEPARATION = 1e-20
         else:
             raise f"Unknown scenario {scenario}"
     
@@ -355,8 +355,9 @@ class ParticleSimulator:
         ax_pres = fig.add_subplot(3,2,4)
         pressure = ax_pres.plot(timeList[:1], presList[:1] )[0]
         pred_pressure = TIME_OVER_DISTANCE_CONVERSION*self.N*IDEALGAS*self.temp/(VOLUME* AVOGADRO)
+        print(pred_pressure)
         ax_pres.axhline(y=pred_pressure, c='red', label='Predicted')
-        ax_pres.set_ylim((np.min(presList + [pred_pressure]),np.max(presList + [pred_pressure])))
+        ax_pres.set_ylim((min(np.min(presList), pred_pressure),max(np.max(presList), pred_pressure)))
 
         ax_pres.set_xlabel('Time (sec)')
         ax_pres.set_ylabel(r'Pressure (micro Pascal)')
@@ -535,9 +536,9 @@ def moving_average(a, n=3):
 
 
 
-s = ParticleSimulator(scenario='ideal', cuberoot_N=3, temperature = 1500)
+s = ParticleSimulator(scenario='ideal', cuberoot_N=6, temperature = 1500)
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(5, 50)
+s.runIVP(10, 50)
 # %%

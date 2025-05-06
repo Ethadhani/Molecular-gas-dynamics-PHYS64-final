@@ -34,7 +34,7 @@ class ParticleSimulator:
     # 3852819 => 9.371 constant
     # seed 10 => 9.044 constant
     # seed 5 => 8.991 constant
-    def __init__(self, cuberoot_N: int = 5, temperature = 1000, scenario: str = 'ideal', seed = 5):
+    def __init__(self, cuberoot_N: int = 5, temperature = 150, scenario: str = 'ideal', seed = 5):
         '''
             Initializes the particle simulation in a 1-nm radius sphere
 
@@ -50,7 +50,7 @@ class ParticleSimulator:
             # Potential constants
             self.V0 = 1e5
             self.A = 1e-5 # magic numbers from Elio's desmos
-            self.MIN_SEPARATION = 1e-5
+            self.MIN_SEPARATION = 1e-20 #1e-5
         elif scenario == 'repulsive':
             #very very repulsive, we dont really like this one
             self.MASS = 2*2.3259e-5 # zepto kg
@@ -446,7 +446,7 @@ class ParticleSimulator:
 
         ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fpns - ROLLING, interval = (1000/fpns) )
         # https://stackoverflow.com/questions/37146420/saving-matplotlib-animation-as-mp4
-        ani.save(f'Particles-{self.scenario}-{self.temp}.mp4', writer = animation.FFMpegWriter(fps=fpns))
+        ani.save(f'Particles-{self.scenario}-{self.temp}-{self.N}.mp4', writer = animation.FFMpegWriter(fps=fpns))
         #ani.save(f'Particles-{self.scenario}-{self.temp}-theMidOneMin.mp4', writer = animation.FFMpegWriter(fpns=fpns))
         #plt.show()
 
@@ -534,9 +534,9 @@ def moving_average(a, n=3):
 
 
 
-s = ParticleSimulator(scenario='attractivenomin')
+s = ParticleSimulator(scenario='ideal', cuberoot_N=3, temperature = 1500)
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(5, 40)
+s.runIVP(10, 50)
 # %%

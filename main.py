@@ -34,7 +34,7 @@ class ParticleSimulator:
     # 3852819 => 9.371 constant
     # seed 10 => 9.044 constant
     # seed 5 => 8.991 constant
-    def __init__(self, cuberoot_N: int = 4, temperature = 3000, scenario: str = 'ideal', seed = 5):
+    def __init__(self, cuberoot_N: int = 4, temperature = 4000, scenario: str = 'ideal', seed = 5):
         '''
             Initializes the particle simulation in a 1-nm radius sphere
 
@@ -63,6 +63,18 @@ class ParticleSimulator:
             self.V0 = 1e-3
             self.A = 1e-4 # magic numbers from Elio's desmos
             self.MIN_SEPARATION = 1e-4 # 1 ångström because that is about how big an atom is (used to be 9.99e-6)
+        elif scenario == 'notideal':
+            self.MASS = 2*2.3259e-5 # zepto kg
+            # Potential constants
+            self.V0 = 1e4
+            self.A = 1e-4 # magic numbers from Elio's desmos
+            self.MIN_SEPARATION = 1e-4 # 1 ångström because that is about how big an atom is (used to be 9.99e-6)
+        elif scenario == 'notnotideal':
+            self.MASS = 2*2.3259e-5 # zepto kg
+            # Potential constants
+            self.V0 = 1e4
+            self.A = 1e-3 # magic numbers from Elio's desmos
+            self.MIN_SEPARATION = 1e-3 # 10 ångström because that is about how big an atom is (used to be 9.99e-6)
         
         else:
             raise f"Unknown scenario {scenario}"
@@ -244,9 +256,9 @@ class ParticleSimulator:
             data = solve_ivp(
                 self.dU, t_span=(tPick,t), y0=passedVals,
                 t_eval = timeList[frame:],
-                max_step = 0.0001, events=event, dense_output=False,
+                max_step = 0.0005, events=event, dense_output=False,
                 first_step = COLLISION_TIME,
-                rtol=1e-6, atol = 1e-9 # 1000x more sensitive to error
+                #rtol=1e-6, atol = 1e-9 # 1000x more sensitive to error
                 #min_step = 0.000001
             )
 
@@ -274,10 +286,9 @@ class ParticleSimulator:
                 # impulse has units of zepto-Newton s * 10^3 
                 time_in_micros = (frame/fpns)
                 propConst[frame] = (
-                    ((np.sum(netImpulseOnSphere[frame // 2:frame]) / (time_in_micros/2) )/SURFACE_AREA) # Pressure
+                    ((np.sum(netImpulseOnSphere[ :frame]) / (time_in_micros) )/SURFACE_AREA) # Pressure
                     * VOLUME / (self.N * self.temp / AVOGADRO)
                 ) * DISTANCE_OVER_TIME_CONVERSION**2 #  10^(-27) * ideal gas constant
-                
                 print(f'frame {frame}, constant/actual constant: {propConst[frame]/IDEALGAS}')
                 #np.sum(netImpulseOnSphere) / (4*np.pi * (frame/fpns))
         #plot the sphere taken from matplotlib docs
@@ -288,7 +299,7 @@ class ParticleSimulator:
         # fill in the blank spots with a loop....
         for i in blankSpots[0][1:]:
             propConst[i] = (
-                ((np.sum(netImpulseOnSphere[i // 2:i]) / (timeList[i] /2) )/SURFACE_AREA) # Pressure
+                ((np.sum(netImpulseOnSphere[:i]) / (timeList[i] ) )/SURFACE_AREA) # Pressure
                 * VOLUME / (self.N * self.temp / AVOGADRO)
             ) * DISTANCE_OVER_TIME_CONVERSION**2
 
@@ -330,8 +341,8 @@ class ParticleSimulator:
         zv = dataset[self.N*5:self.N*6,:].T
 
         KE = (np.square(xv) + np.square(yv) + np.square(zv)) * self.MASS / 2
-        KEmin = np.min(KE)*0.95
-        KEmax = np.max(KE)*1.15
+        KEmin = np.min(KE)*0.999
+        KEmax = np.max(KE)*1.001
 
         print('calc potential')
         pEtotal = np.zeros(len(timeList))
@@ -358,7 +369,7 @@ class ParticleSimulator:
         ax_pres.axhline(y=TIME_OVER_DISTANCE_CONVERSION*self.N*IDEALGAS*self.temp/(VOLUME* AVOGADRO), c='red', label='Predicted')
         ax_pres.set_xlabel('Time (sec)')
         ax_pres.set_ylabel(r'Pressure (micro Pascal)')
-        ax_pres.set_title(f'Pressure per time: {np.mean(presList[:1]):.3f}')
+        ax_pres.set_title(f'Pressure: {np.mean(presList[:1]):.3f}')
         ax_pres.legend()
 
 
@@ -532,7 +543,7 @@ def moving_average(a, n=3):
 
 
 
-s = ParticleSimulator(scenario='lessLessideal')
+s = ParticleSimulator(scenario='notnotideal')
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)

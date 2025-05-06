@@ -26,7 +26,7 @@ class ParticleSimulator:
     # 3852819 => 9.371 constant
     # seed 10 => 9.044 constant
     # seed 5 => 8.991 constant
-    def __init__(self, cuberoot_N: int = 5, temperature = 2000, scenario: str = 'ideal', seed = 5):
+    def __init__(self, cuberoot_N: int = 5, temperature = 1000, scenario: str = 'ideal', seed = 5):
         '''
             Initializes the particle simulation
 
@@ -93,7 +93,7 @@ class ParticleSimulator:
         self.posY = self.posY.ravel()
         self.posZ = self.posZ.ravel()
 
-        initial_velocity = np.sqrt(8 * BOLTZMANN * temperature / (self.MASS * np.pi))
+        initial_velocity = np.sqrt(2.56 * BOLTZMANN * temperature / (self.MASS ))
         print(f"Initial velocity for T = {temperature} K is {initial_velocity} m/s.")
         # generate velocity with constant magnitude v_initial
         # asking numpy RNG to give a number between v_i and v_i each time should yield v_i 
@@ -279,7 +279,7 @@ class ParticleSimulator:
                 vel = vel.T
                 passedVals = np.concatenate((pos[0], pos[1], pos[2], vel[0], vel[1], vel[2]))
                 tPick = data.t_events[0][0]
-                propConst[frame] = (np.sum(netImpulseOnSphere[frame // 2:frame]) / ( (frame/(2*fps))* 3) ) / (self.N * self.temp / AVOGADRO)# * np.pi*4/3 / self.N / self.temp
+                propConst[frame] = (np.sum(netImpulseOnSphere[frame // 2:frame]) / ( (frame/(fps*2))* 3) ) / (self.N * self.temp / AVOGADRO)# * np.pi*4/3 / self.N / self.temp
                 print(f'frame {frame}, constant: {propConst[frame]}')
                 #np.sum(netImpulseOnSphere) / (4*np.pi * (frame/fps))
         #plot the sphere taken from matplotlib docs
@@ -435,7 +435,7 @@ class ParticleSimulator:
 
             ax_pres.set_xlim((0, timeList[frame]+0.1))
             # REMOVE IF PLOTTING LIVE
-            #ax.view_init(30, 60 + rotateRate * frame, 0)
+            ax.view_init(30, 60 + rotateRate * frame, 0)
             return (scat, prop, kinetic, pot, pressure)
         
         fig.tight_layout(pad=.5)

@@ -21,8 +21,8 @@ COLLISION_TIME = 1e-9
 VOLUME = (4/3) * np.pi # units of (micron)^3
 SURFACE_AREA = 4 * np.pi # units of (micron)^2
 
-DISTANCE_TO_TIME_UNIT_RATIO = 1e3
-TIME_TO_DISTANCE_UNIT_RATIO = 1/DISTANCE_TO_TIME_UNIT_RATIO
+DISTANCE_OVER_TIME_CONVERSION = 1e3
+TIME_OVER_DISTANCE_CONVERSION = 1/DISTANCE_OVER_TIME_CONVERSION
 
 
 # type indicating (x, y, z) coordinates
@@ -102,7 +102,7 @@ class ParticleSimulator:
         self.posY = self.posY.ravel()
         self.posZ = self.posZ.ravel()
 
-        initial_velocity = np.sqrt(3 * BOLTZMANN * temperature / (self.MASS )) * TIME_TO_DISTANCE_UNIT_RATIO
+        initial_velocity = np.sqrt(3 * BOLTZMANN * temperature / (self.MASS )) * TIME_OVER_DISTANCE_CONVERSION
         print(f"Initial velocity for T = {temperature} K is {initial_velocity} nm/micros.")
         # generate velocity with constant magnitude v_initial
         # asking numpy RNG to give a number between v_i and v_i each time should yield v_i 
@@ -293,7 +293,7 @@ class ParticleSimulator:
                 propConst[frame] = (
                     ((np.sum(netImpulseOnSphere[frame // 2:frame]) / (time_in_micros/2) )/SURFACE_AREA) # Pressure
                     * VOLUME / (self.N * self.temp / AVOGADRO)
-                ) * DISTANCE_TO_TIME_UNIT_RATIO**2 #  10^(-27) * ideal gas constant
+                ) * DISTANCE_OVER_TIME_CONVERSION**2 #  10^(-27) * ideal gas constant
                  # TODO: make this pressure
                 print(f'frame {frame}, constant/actual constant: {propConst[frame]/IDEALGAS}')
                 #np.sum(netImpulseOnSphere) / (4*np.pi * (frame/fpmicros))
@@ -307,7 +307,7 @@ class ParticleSimulator:
             propConst[i] = (
                 ((np.sum(netImpulseOnSphere[i // 2:i]) / (timeList[i] /2) )/SURFACE_AREA) # Pressure
                 * VOLUME / (self.N * self.temp / AVOGADRO)
-            ) * DISTANCE_TO_TIME_UNIT_RATIO**2
+            ) * DISTANCE_OVER_TIME_CONVERSION**2
 
         u = np.linspace(0, 2 * np.pi, 20)
         v = np.linspace(0, np.pi, 20)

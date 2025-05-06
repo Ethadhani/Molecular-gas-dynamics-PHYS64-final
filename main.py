@@ -16,7 +16,7 @@ BOLTZMANN = 0.01381 # k_B Boltzmann constant, units of zeptoJoule/K
 IDEALGAS = 8.314e21 # for verification, units zeptoJoule / (K mol)
 AVOGADRO = 6.023e23 # Avogadro's number of things per mole
 COLLISION_TIME = 1e-9 
-
+ROLLING = 10
 # assume radius is 1 micron
 VOLUME = (4/3) * np.pi # units of (micron)^3
 SURFACE_AREA = 4 * np.pi # units of (micron)^2
@@ -34,7 +34,7 @@ class ParticleSimulator:
     # 3852819 => 9.371 constant
     # seed 10 => 9.044 constant
     # seed 5 => 8.991 constant
-    def __init__(self, cuberoot_N: int = 5, temperature = 3000, scenario: str = 'ideal', seed = 5):
+    def __init__(self, cuberoot_N: int = 4, temperature = 3000, scenario: str = 'ideal', seed = 5):
         '''
             Initializes the particle simulation in a 1-nm radius sphere
 
@@ -46,41 +46,24 @@ class ParticleSimulator:
         rng = default_rng(seed=seed)
 
         if scenario == 'ideal':
-            self.MASS = 2*2.3259e-5
+            self.MASS = 2*2.3259e-5 # zepto kg
+            # Potential constants
+            self.V0 = 1e-11
+            self.A = 0.15849319246 # magic numbers from Elio's desmos
+            self.MIN_SEPARATION = 1.5e-4 # 1.5 ångström because that is about how big an atom is (used to be 9.99e-6)
+        elif scenario == 'lessideal':
+            self.MASS = 2*2.3259e-5 # zepto kg
             # Potential constants
             self.V0 = 1e-4
-            self.A = 1e-7 # magic numbers from Elio's desmos
-            self.MIN_SEPARATION = 1e-7 # 1 ångström because that is about how big an atom is (used to be 9.99e-6)
-
-        elif scenario == 'nopotential':
-            self.MASS = 2.18e-25 # xenon atom
+            self.A = 1e-4 # magic numbers from Elio's desmos
+            self.MIN_SEPARATION = 1e-4 # 1 ångström because that is about how big an atom is (used to be 9.99e-6)
+        elif scenario == 'lessLessideal':
+            self.MASS = 2*2.3259e-5 # zepto kg
             # Potential constants
-            self.V0 = 0
-            self.A = 0#1e-5 # magic numbers from Elio's desmos
-            self.MIN_SEPARATION = 1.3333333333-5
-        elif scenario == 'idealheavy':
-            self.MASS = 1e-10 # in kg
-            # Potential constants
-            self.V0 = 1e-9
-            self.A = 1e-5 # magic numbers from Elio's desmos
-            self.MIN_SEPARATION = 9.99e-6
-        elif scenario == 'Testideal':
-            self.MASS = 1e-20 # in kg
-            # Potential constants
-            self.V0 = 1e-12
-            self.A = 1e-5 # magic numbers from Elio's desmos
-            self.MIN_SEPARATION = 1.333333-5
-            # 8.6707, remove another 3
-        elif scenario == 'nonideal':
-            self.MASS = 1e-20
-            self.V0 = 1e-6
-            self.A = 1e-5
-            self.MIN_SEPARATION = self.A * 0.999999999999 # 12 9s
-        elif scenario == 'nonideal2':
-            self.MASS = 1e-20
-            self.V0 = 1e-8
-            self.A = 1e-5
-            self.MIN_SEPARATION = self.A * 0.999999999999 # 12 9s
+            self.V0 = 1e-3
+            self.A = 1e-4 # magic numbers from Elio's desmos
+            self.MIN_SEPARATION = 1e-4 # 1 ångström because that is about how big an atom is (used to be 9.99e-6)
+        
         else:
             raise f"Unknown scenario {scenario}"
     
@@ -227,7 +210,7 @@ class ParticleSimulator:
         #     print(n)
         return F
     
-    def runIVP(self, t, fpmicros):
+    def runIVP(self, t, fpns):
 
         # print(passedVals)
         passedVals = np.concatenate((
@@ -250,20 +233,20 @@ class ParticleSimulator:
                 return -1.0 # keep going!
         event.terminal = True
 
-        dataset = np.zeros((N * 6, fpmicros * t ))
+        dataset = np.zeros((N * 6, fpns * t ))
         frame = 0
-        timeList = np.linspace(0, t, int(fpmicros * t ))
+        timeList = np.linspace(0, t, int(fpns * t ))
         netImpulseOnSphere = np.zeros(len(timeList))
         propConst = np.zeros(len(timeList)) #PV / (nT)
 
         tPick = 0
-        while frame < int(fpmicros * t)-1:
+        while frame < int(fpns * t)-1:
             data = solve_ivp(
                 self.dU, t_span=(tPick,t), y0=passedVals,
                 t_eval = timeList[frame:],
-                max_step = 0.0005, events=event, dense_output=False,
+                max_step = 0.0001, events=event, dense_output=False,
                 first_step = COLLISION_TIME,
-                #rtol=1e-6, atol = 1e-9 # 1000x more sensitive to error
+                rtol=1e-6, atol = 1e-9 # 1000x more sensitive to error
                 #min_step = 0.000001
             )
 
@@ -289,14 +272,14 @@ class ParticleSimulator:
                 passedVals = np.concatenate((pos[0], pos[1], pos[2], vel[0], vel[1], vel[2]))
                 tPick = data.t_events[0][0]
                 # impulse has units of zepto-Newton s * 10^3 
-                time_in_micros = (frame/fpmicros)
+                time_in_micros = (frame/fpns)
                 propConst[frame] = (
                     ((np.sum(netImpulseOnSphere[frame // 2:frame]) / (time_in_micros/2) )/SURFACE_AREA) # Pressure
                     * VOLUME / (self.N * self.temp / AVOGADRO)
                 ) * DISTANCE_OVER_TIME_CONVERSION**2 #  10^(-27) * ideal gas constant
-                 # TODO: make this pressure
+                
                 print(f'frame {frame}, constant/actual constant: {propConst[frame]/IDEALGAS}')
-                #np.sum(netImpulseOnSphere) / (4*np.pi * (frame/fpmicros))
+                #np.sum(netImpulseOnSphere) / (4*np.pi * (frame/fpns))
         #plot the sphere taken from matplotlib docs
 
         # the proportionality constant wont be filled in if no collisions during that frame, thus we can fill it in.
@@ -329,7 +312,7 @@ class ParticleSimulator:
         ax_prop.set_xlabel('Time (seconds)')
         ax_prop.set_ylabel(r'$\frac{PV}{nT}$')
         ax_prop.set_title('Ideal gas constants')
-        ax_prop.axhline(y=8.314e27, label='actual', ls=':')
+        ax_prop.axhline(y=IDEALGAS, label='actual', ls=':')
         ax_prop.legend()
 
 
@@ -367,15 +350,15 @@ class ParticleSimulator:
         ax.set_aspect('equal')
 
         # plot pressure
-        presList = moving_average(netImpulseOnSphere, 3) * fpmicros / (4 * np.pi)
-
+        presList = moving_average(netImpulseOnSphere, ROLLING) * fpns * DISTANCE_OVER_TIME_CONVERSION/ SURFACE_AREA
+        
         ax_pres = fig.add_subplot(3,2,4)
         ax_pres.set_ylim((np.min(presList),np.max(presList)))
         pressure = ax_pres.plot(timeList[:1], presList[:1] )[0]
-        ax_pres.axhline(y=self.N*IDEALGAS*self.temp/(4.1887902048 * AVOGADRO), c='red', label='Predicted')
+        ax_pres.axhline(y=TIME_OVER_DISTANCE_CONVERSION*self.N*IDEALGAS*self.temp/(VOLUME* AVOGADRO), c='red', label='Predicted')
         ax_pres.set_xlabel('Time (sec)')
-        ax_pres.set_ylabel(r'Pressure $(\frac{N}{m^2})$')
-        ax_pres.set_title('Pressure per time')
+        ax_pres.set_ylabel(r'Pressure (micro Pascal)')
+        ax_pres.set_title(f'Pressure per time: {np.mean(presList[:1]):.3f}')
         ax_pres.legend()
 
 
@@ -411,6 +394,7 @@ class ParticleSimulator:
         pmin = np.min(pEtotal[5:-5])
         pmax = np.max(pEtotal[5:-5])
         diff = np.abs(np.max([kmax-kmin, pmax-pmin])) * 1.1 / 2
+
         
         ax_KE.set_title('System energy')
         ax_KE.set_ylim((np.median([kmin, kmax]) - diff, np.median([kmin, kmax]) + diff))
@@ -427,7 +411,7 @@ class ParticleSimulator:
 
 
 
-        rotateRate = 5 / (fpmicros)
+        rotateRate = 10 / (fpns)
         def update(frame):
             # particles
             scat._offsets3d = (xp[frame], yp[frame], zp[frame])
@@ -439,8 +423,8 @@ class ParticleSimulator:
             prop.set_ydata(propConst[:frame])
             ax_prop.set_xlim((0, timeList[frame]+0.1))
             if frame%10:
-                ax_prop.set_title(f'Ideal gas constant: {propConst[frame]:.3f}')
-
+                ax_prop.set_title(f'Ideal gas constant: {(propConst[frame]*1e-21):.3f}'+r' $10^{21}$')
+                ax_pres.set_title(f'Pressure per time: {np.mean(presList[:frame]):.3f}')
             
             kinetic.set_xdata(timeList[:frame])
             kinetic.set_ydata(kEtotal[:frame])
@@ -458,10 +442,10 @@ class ParticleSimulator:
         
         fig.tight_layout(pad=.5)
 
-        ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fpmicros - 2, interval = (1000/fpmicros) )
+        ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fpns - ROLLING, interval = (1000/fpns) )
         # https://stackoverflow.com/questions/37146420/saving-matplotlib-animation-as-mp4
-        ani.save(f'Particles-{self.scenario}-{self.temp}.mp4', writer = animation.FFMpegWriter(fps=fpmicros))
-        #ani.save(f'Particles-{self.scenario}-{self.temp}-theMidOneMin.mp4', writer = animation.FFMpegWriter(fpmicros=fpmicros))
+        ani.save(f'Particles-{self.scenario}-{self.temp}.mp4', writer = animation.FFMpegWriter(fps=fpns))
+        #ani.save(f'Particles-{self.scenario}-{self.temp}-theMidOneMin.mp4', writer = animation.FFMpegWriter(fpns=fpns))
         #plt.show()
 
     def potential(self, a: Coordinate, b: Coordinate) -> Coordinate:
@@ -548,7 +532,7 @@ def moving_average(a, n=3):
 
 
 
-s = ParticleSimulator(scenario='ideal')
+s = ParticleSimulator(scenario='lessLessideal')
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)

@@ -330,8 +330,8 @@ class ParticleSimulator:
         zv = dataset[self.N*5:self.N*6,:].T
 
         KE = (np.square(xv) + np.square(yv) + np.square(zv)) * self.MASS / 2
-        KEmin = np.min(KE)*0.9
-        KEmax = np.max(KE)*1.1
+        KEmin = np.min(KE)*0.95
+        KEmax = np.max(KE)*1.15
 
         print('calc potential')
         pEtotal = np.zeros(len(timeList))

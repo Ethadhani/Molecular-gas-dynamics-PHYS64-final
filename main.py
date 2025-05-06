@@ -34,7 +34,7 @@ class ParticleSimulator:
     # 3852819 => 9.371 constant
     # seed 10 => 9.044 constant
     # seed 5 => 8.991 constant
-    def __init__(self, cuberoot_N: int = 2, temperature = 273.75 + 75, scenario: str = 'ideal', seed = 5):
+    def __init__(self, cuberoot_N: int = 5, temperature = 3000, scenario: str = 'ideal', seed = 5):
         '''
             Initializes the particle simulation in a 1-nm radius sphere
 

@@ -211,7 +211,7 @@ class ParticleSimulator:
         #     print(n)
         return F
     
-    def runIVP(self, t, fpns):
+    def runIVP(self, t, fpns, hist = False):
 
         # print(passedVals)
         passedVals = np.concatenate((
@@ -306,14 +306,19 @@ class ParticleSimulator:
         fig = plt.figure(figsize=plt.figaspect(0.5))
 
         # Avogadro plot
-        ax_prop = fig.add_subplot(3,2,2)
-        prop = ax_prop.plot(timeList[:1], propConst[:1], label='Calc')[0]
-        ax_prop.set_ylim((np.min(propConst)-0.5, np.max(propConst)*1.1))
-        ax_prop.set_xlabel('Time (seconds)')
-        ax_prop.set_ylabel(r'$\frac{PV}{nT}$')
-        ax_prop.set_title('Ideal gas constants')
-        ax_prop.axhline(y=IDEALGAS, label='actual', ls=':')
-        ax_prop.legend()
+        ax_prop = None
+        prop = None
+        if not hist:
+            ax_prop = fig.add_subplot(3,2,2)
+            prop = ax_prop.plot(timeList[:1], propConst[:1], label='Calc')[0]
+            ax_prop.set_ylim((np.min(propConst)-0.5, np.max(propConst)*1.1))
+            ax_prop.set_xlabel('Time (seconds)')
+            ax_prop.set_ylabel(r'$\frac{PV}{nT}$')
+            ax_prop.set_title('Ideal gas constants')
+            ax_prop.axhline(y=IDEALGAS, label='actual', ls=':')
+            ax_prop.legend()
+            print(prop)
+        
 
 
         
@@ -340,6 +345,22 @@ class ParticleSimulator:
 
         #print(potential)
 
+        # plot hist
+        bins = None
+        if hist:
+            ax_prop = fig.add_subplot(3,2,2)
+            ax_prop.set_title('Velocity histogram')
+            ax_prop.set_xlabel('Velocity (microns/ns)')
+            ax_prop.set_ylabel('count')
+
+            velList = np.sqrt((np.square(xv) + np.square(yv) + np.square(zv)))
+            bins = np.linspace(np.min(velList), np.max(velList), 20)
+
+            # from matplotlib example
+            _, _, prop = ax_prop.hist(velList[0], bins=bins)#, lw=1, ec="yellow", fc = "green", alpha=0.5)
+
+            
+
         
         scat = ax.scatter(xp[0], yp[0], zp[0], c = KE[0], cmap='cool', 
                           vmin=KEmin, vmax = KEmax)
@@ -355,7 +376,6 @@ class ParticleSimulator:
         ax_pres = fig.add_subplot(3,2,4)
         pressure = ax_pres.plot(timeList[:1], presList[:1] )[0]
         pred_pressure = TIME_OVER_DISTANCE_CONVERSION*self.N*IDEALGAS*self.temp/(VOLUME* AVOGADRO)
-        print(pred_pressure)
         ax_pres.axhline(y=pred_pressure, c='red', label='Predicted')
         ax_pres.set_ylim((
             min(np.min(presList), pred_pressure * 0.9),
@@ -418,18 +438,26 @@ class ParticleSimulator:
 
 
         rotateRate = 10 / (fpns)
-        def update(frame):
+        def update(frame, prop):
             # particles
             scat._offsets3d = (xp[frame], yp[frame], zp[frame])
             scat.set_array(KE[frame])
             scat.set_clim(vmin=KEmin, vmax=KEmax)
 
             # Avogadro
-            prop.set_xdata(timeList[:frame])
-            prop.set_ydata(propConst[:frame])
-            ax_prop.set_xlim((0, timeList[frame]+0.1))
+            if not hist:
+                prop.set_xdata(timeList[:frame])
+                prop.set_ydata(propConst[:frame])
+                ax_prop.set_xlim((0, timeList[frame]+0.1))
+            else:
+                # from Matplotlib docs "gallery"
+                n, _ = np.histogram(velList[frame], bins)
+                for count, rect in zip(n, prop.patches):
+                    rect.set_height(count)
+                # prop = ax_prop.hist(velList[frame])
             if frame%10:
-                ax_prop.set_title(f'Ideal gas constant: {(propConst[frame]*1e-21):.3f}'+r' J/(mol K)')
+                if not hist:
+                    ax_prop.set_title(f'Ideal gas constant: {(propConst[frame]*1e-21):.3f}'+r' J/(mol K)')
                 ax_pres.set_title(f'Pressure: {np.mean(presList[:frame]):.3f} (micro Pascals)')
             
             kinetic.set_xdata(timeList[:frame])
@@ -444,13 +472,17 @@ class ParticleSimulator:
             ax_pres.set_xlim((0, timeList[frame]+0.1))
             # REMOVE IF PLOTTING LIVE
             ax.view_init(30, 60 + rotateRate * frame, 0)
-            return (scat, prop, kinetic, pot, pressure)
+
+            if not hist:
+                return (scat, prop, kinetic, pot, pressure)
+            else: # hist
+                return (scat, prop.patches, kinetic, pot, pressure)
         
         fig.tight_layout(pad=.5)
 
-        ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fpns - ROLLING, interval = (1000/fpns) )
+        ani = animation.FuncAnimation(fig = fig, func = update, fargs=(prop,), frames = t * fpns - ROLLING, interval = (1000/fpns) )
         # https://stackoverflow.com/questions/37146420/saving-matplotlib-animation-as-mp4
-        ani.save(f'Particles-{self.scenario}-{self.temp}-{self.N}-{t}.mp4', writer = animation.FFMpegWriter(fps=fpns))
+        ani.save(f'Particles-{self.scenario}-{self.temp}-{self.N}-{t}-{hist}.mp4', writer = animation.FFMpegWriter(fps=fpns))
         #ani.save(f'Particles-{self.scenario}-{self.temp}-theMidOneMin.mp4', writer = animation.FFMpegWriter(fpns=fpns))
         #plt.show()
 
@@ -543,5 +575,5 @@ s = ParticleSimulator(scenario='ideal', cuberoot_N=5, temperature = 1500)
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(20, 50)
+s.runIVP(5, 50, hist=True)
 # %%

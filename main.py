@@ -429,7 +429,7 @@ class ParticleSimulator:
             prop.set_ydata(propConst[:frame])
             ax_prop.set_xlim((0, timeList[frame]+0.1))
             if frame%10:
-                ax_prop.set_title(f'Ideal gas constant: {(propConst[frame]*1e-21):.3f}'+r' $10^{21}$')
+                ax_prop.set_title(f'Ideal gas constant: {(propConst[frame]*1e-21):.3f}'+r' $\times 10^{21}$')
                 ax_pres.set_title(f'Pressure: {np.mean(presList[:frame]):.3f}')
             
             kinetic.set_xdata(timeList[:frame])
@@ -450,7 +450,7 @@ class ParticleSimulator:
 
         ani = animation.FuncAnimation(fig = fig, func = update, frames = t * fpns - ROLLING, interval = (1000/fpns) )
         # https://stackoverflow.com/questions/37146420/saving-matplotlib-animation-as-mp4
-        ani.save(f'Particles-{self.scenario}-{self.temp}-{self.N}.mp4', writer = animation.FFMpegWriter(fps=fpns))
+        ani.save(f'Particles-{self.scenario}-{self.temp}-{self.N}-{t}.mp4', writer = animation.FFMpegWriter(fps=fpns))
         #ani.save(f'Particles-{self.scenario}-{self.temp}-theMidOneMin.mp4', writer = animation.FFMpegWriter(fpns=fpns))
         #plt.show()
 
@@ -539,7 +539,7 @@ def moving_average(a, n=3):
 
 
 
-s = ParticleSimulator(scenario='attractive', cuberoot_N=5, temperature = 1500)
+s = ParticleSimulator(scenario='ideal', cuberoot_N=7, temperature = 0)
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)

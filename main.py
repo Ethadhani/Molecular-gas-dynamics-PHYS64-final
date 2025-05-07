@@ -364,7 +364,7 @@ class ParticleSimulator:
 
         ax_pres.set_xlabel('Time (sec)')
         ax_pres.set_ylabel(r'Pressure (micro Pascal)')
-        ax_pres.set_title(f'Pressure: {np.mean(presList[:1]):.3f}')
+        ax_pres.set_title(f'Pressure: {np.mean(presList[:1]):.3f} (micro Pascals)')
         ax_pres.legend()
 
 
@@ -391,7 +391,7 @@ class ParticleSimulator:
 
         #add labels
         ax_KE.set_xlabel('Time (seconds)')
-        ax_KE.set_ylabel('$K_E$ (J)')
+        ax_KE.set_ylabel('$K_E$')
         ax_PE.set_ylabel('$|U_E|$ (J)')
 
     # set limits and such
@@ -402,7 +402,7 @@ class ParticleSimulator:
         diff = np.abs(np.max([kmax-kmin, pmax-pmin])) * 1.1 / 2
 
         
-        ax_KE.set_title('System energy')
+        ax_KE.set_title('System energy (zepto Joules)')
         ax_KE.set_ylim((np.median([kmin, kmax]) - diff, np.median([kmin, kmax]) + diff))
         ax_PE.set_ylim((np.median([pmin, pmax]) - diff, np.median([pmin, pmax]) + diff))
 
@@ -429,8 +429,8 @@ class ParticleSimulator:
             prop.set_ydata(propConst[:frame])
             ax_prop.set_xlim((0, timeList[frame]+0.1))
             if frame%10:
-                ax_prop.set_title(f'Ideal gas constant: {(propConst[frame]*1e-21):.3f}'+r' $\times 10^{21}$')
-                ax_pres.set_title(f'Pressure: {np.mean(presList[:frame]):.3f}')
+                ax_prop.set_title(f'Ideal gas constant: {(propConst[frame]*1e-21):.3f}'+r' J/(mol K)')
+                ax_pres.set_title(f'Pressure: {np.mean(presList[:frame]):.3f} (micro Pascals)')
             
             kinetic.set_xdata(timeList[:frame])
             kinetic.set_ydata(kEtotal[:frame])
@@ -539,9 +539,9 @@ def moving_average(a, n=3):
 
 
 
-s = ParticleSimulator(scenario='ideal', cuberoot_N=7, temperature = 0)
+s = ParticleSimulator(scenario='ideal', cuberoot_N=5, temperature = 1500)
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(1, 50)
+s.runIVP(20, 50)
 # %%

@@ -354,7 +354,7 @@ class ParticleSimulator:
             ax_prop.set_ylabel('count')
 
             velList = np.sqrt((np.square(xv) + np.square(yv) + np.square(zv)))
-            bins = np.linspace(np.min(velList), np.max(velList), 20)
+            bins = np.linspace(np.min(velList[:-1]), np.max(velList), 20)
 
             # from matplotlib example
             _, _, prop = ax_prop.hist(velList[0], bins=bins)#, lw=1, ec="yellow", fc = "green", alpha=0.5)
@@ -575,5 +575,5 @@ s = ParticleSimulator(scenario='ideal', cuberoot_N=5, temperature = 1500)
 print('Simulation Initiated')
 #s.run()
 # s.runPre(0.01, 5)
-s.runIVP(5, 50, hist=True)
+s.runIVP(1, 50, hist=True)
 # %%
